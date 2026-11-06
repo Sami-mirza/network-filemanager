@@ -1,184 +1,204 @@
-# Network File Manager
+<div align="center">
 
-A modern, fast, lightweight, and self-hosted web-based file manager built with Python and Flask. Easily browse, upload, preview, edit, and share files across your local network or server with zero complex database setup.
+# 🌐 Network File Manager
 
----
+**A modern, lightweight, self-hosted web-based file manager built with Python & Flask.**  
+*Browse, upload, preview, edit, and share files across your local network with zero database setup.*
 
-## Table of Contents
+[![Python](https://img.shields.io/badge/Python-3.8%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+[![Flask](https://img.shields.io/badge/Flask-3.x-000000?style=for-the-badge&logo=flask&logoColor=white)](https://flask.palletsprojects.com/)
+[![WSGI Waitress](https://img.shields.io/badge/WSGI-Waitress_3.x-red?style=for-the-badge)](https://docs.pylonsproject.org/projects/waitress/)
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 
-- [Features](#features)
-- [Project Structure](#project-structure)
-- [Prerequisites & Downloads](#prerequisites--downloads)
-- [Quick Start Guide](#quick-start-guide)
-- [Setup Instructions by Operating System](#setup-instructions-by-operating-system)
-  - [Linux (Ubuntu, Debian, Fedora, Arch)](#1-linux-ubuntudebianfedoraarch)
-  - [macOS (Apple Silicon & Intel)](#2-macos-apple-silicon--intel)
-  - [Windows (10 & 11)](#3-windows-10--11)
-  - [Docker & Docker Compose (Cross-Platform)](#4-docker--docker-compose-any-os)
-- [Configuration & Environment Variables](#configuration--environment-variables)
-- [Connecting from Phones & LAN Devices](#connecting-from-phones--lan-devices)
-- [Production & Reverse Proxy (Nginx / Caddy)](#production--reverse-proxy-nginx--caddy)
-- [Troubleshooting & FAQ](#troubleshooting--faq)
-- [License](#license)
+[![Platform Linux](https://img.shields.io/badge/Linux-FCC624?style=flat-square&logo=linux&logoColor=black)](https://www.kernel.org/)
+[![Platform macOS](https://img.shields.io/badge/macOS-000000?style=flat-square&logo=apple&logoColor=white)](https://www.apple.com/macos/)
+[![Platform Windows](https://img.shields.io/badge/Windows-0078D6?style=flat-square&logo=windows&logoColor=white)](https://www.microsoft.com/windows)
+[![Docker Compose](https://img.shields.io/badge/Docker_Compose-Supported-2496ED?style=flat-square&logo=docker&logoColor=white)](https://docs.docker.com/compose/)
 
----
+[Features](#-key-features) • [Prerequisites & Downloads](#-prerequisites--official-download-links) • [Quick Start](#-quick-start) • [OS Setup Guides](#-step-by-step-setup-guides-by-os) • [Docker](#-docker--docker-compose-any-os) • [Configuration](#-configuration--environment-variables) • [LAN Access](#-connecting-from-phones--lan-devices) • [Production & Reverse Proxy](#-production--reverse-proxy-guide) • [Troubleshooting](#-troubleshooting--faq)
 
-## Features
-
-- 📂 **Full File & Folder Management**: Browse directories with breadcrumb navigation, upload multiple files simultaneously, create new directories, and create new files.
-- 🖼️ **Media & Document Previews**: Native in-browser viewer for:
-  - **Images**: PNG, JPG, JPEG, GIF, WEBP, SVG, ICO, AVIF
-  - **Videos**: MP4, WebM, MKV, MOV, OGV
-  - **Audio**: MP3, WAV, OGG, M4A, FLAC, AAC
-  - **Documents**: PDF viewer embedded directly in the page
-- ✏️ **Built-in Text & Code Editor**: Edit code, text notes, Markdown, and configuration files directly in your web browser with save confirmation.
-- 📦 **Instant ZIP Downloads**: Download any single file or compress and download entire directories (or the entire repository) as a `.zip` archive on the fly.
-- 🔍 **Real-Time Instant Search**: Live filter input box to find files in the current folder instantly without reloading.
-- 🌓 **Automatic Dark / Light Theme**: Clean, responsive modern UI that adapts automatically to your device's system appearance.
-- 📱 **Mobile & Local Network Ready**: Displays local IP and port in the terminal upon startup so you can easily access files from smartphones, tablets, or other computers on your Wi-Fi network.
-- 🔒 **Security First**:
-  - Optional password protection (lock your server or leave open for trusted home LAN).
-  - CSRF protection across all forms and API endpoints.
-  - Path traversal and symlink escape defenses (restricts file operations strictly within the configured root directory).
-  - Content Security Policy (CSP) protection for SVG rendering.
-- ⚡ **Smart Port Conflict Detection**: Automatically selects the next available port if port 8080 is already in use.
-- 🚀 **Production Ready**: Supports high-performance multi-threaded WSGI serving via [Waitress](https://docs.pylonsproject.org/projects/waitress/en/stable/) or containerized deployment with [Docker](https://www.docker.com/).
+</div>
 
 ---
 
-## Project Structure
+## 📸 Overview & Web Interface Preview
 
 ```text
-Server/
-├── netmanager             # Main Python application (Flask + Waitress)
-├── requirements.txt       # Python dependencies (Flask, Waitress)
-├── setup.sh               # Automated setup & launcher for Linux / macOS
-├── setup.bat              # Automated setup & launcher for Windows
-├── Dockerfile             # Multi-stage production container image
-├── docker-compose.yml     # Docker Compose orchestration configuration
-├── .env.example           # Configuration template
-├── .env                   # Local configuration (auto-generated, git-ignored)
-├── .gitignore             # Git ignore patterns
-├── .dockerignore          # Docker build ignore patterns
-├── data/                  # Default storage directory for files
-│   └── .gitkeep
-└── README.md              # Project documentation
+┌────────────────────────────────────────────────────────────────────────┐
+│  🌐 File Manager                                      [ 🔒 Sign out ] │
+├────────────────────────────────────────────────────────────────────────┤
+│  Root / Documents / Photos                                             │
+├────────────────────────────────────────────────────────────────────────┤
+│  [ Choose Files ] [ Upload ]   [ Folder Name ] [ New folder ]  [ Filter ]│
+├────────────────────────────────────────────────────────────────────────┤
+│  NAME                     │ SIZE      │ MODIFIED         │ ACTIONS     │
+├────────────────────────────────────────────────────────────────────────┤
+│  📁 Projects              │ -         │ 2026-11-05 18:30 │ ZIP  Del    │
+│  🖼️ sunset.jpg            │ 2.4 MB    │ 2026-11-05 18:22 │ Down Del    │
+│  📝 notes.txt             │ 14.2 KB   │ 2026-11-05 17:45 │ Edit Del    │
+│  🎥 holiday_video.mp4     │ 154.0 MB  │ 2026-11-04 12:10 │ Down Del    │
+│  📄 invoice.pdf           │ 245.0 KB  │ 2026-11-03 09:15 │ Down Del    │
+└────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Prerequisites & Downloads
+## ✨ Key Features
 
-Before installing, ensure you have Python 3.8+ (Python 3.10+ recommended) or Docker installed.
+- 📂 **Complete File Operations**: Browse directories with breadcrumb navigation, upload multiple files simultaneously, create new directories, and create new text files.
+- 🖼️ **Native Media & Document Previews**:
+  - **Images**: PNG, JPG, JPEG, GIF, WEBP, SVG, ICO, AVIF
+  - **Videos**: MP4, WebM, MKV, MOV, OGV (in-browser HTML5 player)
+  - **Audio**: MP3, WAV, OGG, M4A, FLAC, AAC (in-browser audio player)
+  - **Documents**: Embedded PDF viewer
+- ✏️ **Integrated Code & Text Editor**: In-browser text editor for quick edits, notes, scripts, JSON, Markdown, and configuration files (up to 2 MB) with instant save.
+- 📦 **One-Click ZIP Archives**: Download individual files or download any folder (or the root directory) as a compressed `.zip` archive on the fly.
+- 🔍 **Instant Real-Time Search**: Search and filter files in real time without page refreshes.
+- 🌓 **Adaptive Light / Dark Theme**: Clean UI styled to automatically match your system's light or dark mode.
+- 📱 **Mobile & Local Network Ready**: Displays your LAN IP and port at startup so you can immediately browse and upload files from smartphones, tablets, or other computers on the same Wi-Fi.
+- 🔒 **Security First**:
+  - Optional password protection (lock the server or keep open for home networks).
+  - CSRF protection across all forms and file mutations.
+  - Strict directory traversal protection (blocks `../` and symlink escapes outside the configured data directory).
+  - Content Security Policy (CSP) headers applied to inline SVG rendering.
+- ⚡ **Auto Port Failover**: If port `8080` is in use, automatically selects the next free port.
+- 🚀 **Production Ready**: High-performance multi-threaded WSGI via **Waitress** or containerized via **Docker**.
 
-| Component | Minimum Version | Download & Documentation Links |
+---
+
+## 🗂️ Project Structure
+
+```text
+Server/
+├── netmanager             # Core Python application (Flask + Waitress WSGI)
+├── requirements.txt       # Python dependencies (flask, waitress)
+├── setup.sh               # One-click setup & launcher for Linux / macOS
+├── setup.bat              # One-click setup & launcher for Windows
+├── Dockerfile             # Multi-stage production container image
+├── docker-compose.yml     # Docker Compose orchestration file
+├── .env.example           # Configuration environment template
+├── .env                   # Local configuration (auto-generated, git-ignored)
+├── .gitignore             # Git ignore patterns
+├── .dockerignore          # Docker build ignore rules
+├── data/                  # Default data directory served by the app
+│   └── .gitkeep
+├── README.md              # Main project documentation
+└── reead.md               # Quick setup reference
+```
+
+---
+
+## 📥 Prerequisites & Official Download Links
+
+Before installing, make sure you have **Python 3.8+** (recommended: **Python 3.10+**) or **Docker** installed on your system.
+
+| Tool | Recommended Version | Official Downloads & Guides |
 | :--- | :--- | :--- |
-| **Python** | 3.8 or newer | • [Python Official Downloads (All OS)](https://www.python.org/downloads/)<br>• [Python for Windows (64-bit)](https://www.python.org/downloads/windows/)<br>• [Python for macOS](https://www.python.org/downloads/macos/)<br>• [Python Source / Linux](https://www.python.org/downloads/source/) |
-| **Git** | 2.x+ | • [Git Downloads (All OS)](https://git-scm.com/downloads)<br>• [Git for Windows](https://git-scm.com/download/win)<br>• [Git for macOS](https://git-scm.com/download/mac)<br>• [Git for Linux](https://git-scm.com/download/linux) |
-| **Pip** | Included with Python | • [Pip Installation Guide](https://pip.pypa.io/en/stable/installation/) |
-| **Docker** *(Optional)* | 20.10+ | • [Docker Desktop for Windows](https://docs.docker.com/desktop/setup/install/windows-install/)<br>• [Docker Desktop for Mac](https://docs.docker.com/desktop/setup/install/mac-install/)<br>• [Docker Desktop for Linux](https://docs.docker.com/desktop/setup/install/linux/)<br>• [Docker Engine on Linux](https://docs.docker.com/engine/install/) |
-| **Docker Compose** *(Optional)* | 2.0+ | • [Docker Compose Installation](https://docs.docker.com/compose/install/) |
+| **Python** | `3.10` or newer | • [Python Official Downloads (All Operating Systems)](https://www.python.org/downloads/)<br>• [Python for Windows (Official 64-bit Installer)](https://www.python.org/downloads/windows/)<br>• [Python for macOS (Official Universal Installer)](https://www.python.org/downloads/macos/)<br>• [Python Source Code / Linux Releases](https://www.python.org/downloads/source/) |
+| **Git** | `2.x` or newer | • [Git Downloads (All Platforms)](https://git-scm.com/downloads)<br>• [Git for Windows Installer](https://git-scm.com/download/win)<br>• [Git for macOS](https://git-scm.com/download/mac)<br>• [Git for Linux Distributions](https://git-scm.com/download/linux) |
+| **Pip** | `22.x+` (Bundled) | • [Official Pip Installation Documentation](https://pip.pypa.io/en/stable/installation/) |
+| **Docker Desktop** *(Optional)* | Latest | • [Docker Desktop for Windows (with WSL2)](https://docs.docker.com/desktop/setup/install/windows-install/)<br>• [Docker Desktop for Mac (Apple Silicon & Intel)](https://docs.docker.com/desktop/setup/install/mac-install/)<br>• [Docker Desktop for Linux](https://docs.docker.com/desktop/setup/install/linux/)<br>• [Docker Engine on Ubuntu/Debian/CentOS](https://docs.docker.com/engine/install/) |
+| **Docker Compose** *(Optional)* | `v2.x` | • [Docker Compose Installation Documentation](https://docs.docker.com/compose/install/) |
 
 ---
 
-## Quick Start Guide
+## ⚡ Quick Start
 
-Run the automated setup script for your operating system:
+Choose your operating system below for an instant launch:
 
-- **Linux / macOS**:
-  ```bash
-  chmod +x setup.sh
-  ./setup.sh
-  ```
-- **Windows**:
-  Double-click `setup.bat` or run:
-  ```cmd
-  setup.bat
-  ```
-- **Docker**:
-  ```bash
-  docker compose up -d
-  ```
+```bash
+# 🐧 Linux or 🍏 macOS
+chmod +x setup.sh && ./setup.sh
 
-Once started, open [http://localhost:8080](http://localhost:8080) in your web browser.
+# 🪟 Windows (Command Prompt / PowerShell)
+setup.bat
+
+# 🐳 Docker / Docker Compose (Any OS)
+docker compose up -d
+```
+
+Once running, navigate to:  
+👉 **[http://localhost:8080](http://localhost:8080)**  
+(or the local IP printed in your terminal, e.g. `http://192.168.1.150:8080`)
 
 ---
 
-## Setup Instructions by Operating System
+## 💻 Step-by-Step Setup Guides by OS
 
-### 1. Linux (Ubuntu/Debian/Fedora/Arch)
+### 1. 🐧 Linux (Ubuntu, Debian, Fedora, Arch, openSUSE)
 
-#### Option A: Automated Setup (Recommended)
-1. Open a terminal in the project directory:
+#### Method A: Automated One-Click Setup (Recommended)
+1. Open a terminal in the cloned repository directory:
    ```bash
-   cd /path/to/Server
+   cd Server
    ```
-2. Make `setup.sh` executable and run it:
+2. Grant execution rights and run `setup.sh`:
    ```bash
    chmod +x setup.sh
    ./setup.sh
    ```
-   The script will automatically:
-   - Check your Python version.
-   - Create a Python virtual environment (`.venv`).
-   - Install required dependencies (`Flask`, `Waitress`).
-   - Create `.env` from `.env.example` with a cryptographically secure `SECRET_KEY`.
-   - Ensure the `./data` directory exists.
-   - Launch the server.
+   *What this script does:*
+   - Validates that Python 3.8+ is present.
+   - Automatically builds a local virtual environment in `.venv`.
+   - Installs or updates dependencies from `requirements.txt`.
+   - Generates `.env` from `.env.example` with a cryptographically secure 48-character `SECRET_KEY`.
+   - Ensures the `./data` storage directory is ready.
+   - Launches `netmanager` with multi-threaded Waitress WSGI.
 
-#### Option B: Manual Setup
-1. **Install Python and Pip**:
-   - **Ubuntu / Debian / Linux Mint**:
+#### Method B: Manual Setup
+1. **Install Python & Git via your distribution package manager:**
+   - **Ubuntu / Debian / Linux Mint / Pop!_OS:**
      ```bash
      sudo apt update
      sudo apt install -y python3 python3-venv python3-pip git
      ```
-   - **Fedora / RHEL / CentOS**:
+   - **Fedora / RHEL / CentOS / Rocky Linux:**
      ```bash
      sudo dnf install -y python3 python3-pip git
      ```
-   - **Arch Linux / Manjaro**:
+   - **Arch Linux / Manjaro:**
      ```bash
      sudo pacman -S python python-pip git
      ```
-   - **openSUSE**:
+   - **openSUSE:**
      ```bash
      sudo zypper install python3 python3-pip git
      ```
 
-2. **Create and Activate Virtual Environment**:
+2. **Create and activate a virtual environment:**
    ```bash
    python3 -m venv .venv
    source .venv/bin/activate
    ```
 
-3. **Install Dependencies**:
+3. **Install required Python packages:**
    ```bash
    pip install --upgrade pip
    pip install -r requirements.txt
    ```
 
-4. **Initialize Environment Configuration**:
+4. **Initialize configuration:**
    ```bash
    cp .env.example .env
    ```
 
-5. **Start the Server**:
+5. **Start the application:**
    ```bash
    python3 netmanager
    ```
 
-#### Running as a Background Systemd Service (Linux)
-To run Network File Manager permanently in the background and auto-start on boot:
+#### Optional: Run 24/7 as a Background Service with Systemd
+To keep the server running continuously and restart upon system reboots:
 
-1. Create a systemd service file:
+1. Create a service file:
    ```bash
    sudo nano /etc/systemd/system/netmanager.service
    ```
-2. Paste the following configuration (replace `/home/sam/Projects/Server` and `sam` with your actual path and user):
+2. Paste the following configuration (adjust `/home/sam/Projects/Server` and `sam` to your own user and path):
    ```ini
    [Unit]
-   Description=Network File Manager
+   Description=Network File Manager Web Service
    After=network.target
 
    [Service]
@@ -193,35 +213,35 @@ To run Network File Manager permanently in the background and auto-start on boot
    [Install]
    WantedBy=multi-user.target
    ```
-3. Enable and start the service:
+3. Reload systemd and enable the service:
    ```bash
    sudo systemctl daemon-reload
    sudo systemctl enable --now netmanager
    ```
-4. Check status:
+4. Verify status:
    ```bash
    sudo systemctl status netmanager
    ```
 
 ---
 
-### 2. macOS (Apple Silicon & Intel)
+### 2. 🍏 macOS (Apple Silicon M1/M2/M3/M4 & Intel)
 
-#### Option A: Automated Setup (Recommended)
-1. Open the **Terminal** app (`Applications > Utilities > Terminal` or press `Cmd + Space` and type `Terminal`).
-2. Navigate to the project directory:
+#### Method A: Automated Setup (Recommended)
+1. Open the **Terminal** app (`Cmd + Space` > type `Terminal` > Enter).
+2. Navigate to the repository:
    ```bash
    cd /path/to/Server
    ```
-3. Make `setup.sh` executable and run it:
+3. Run the automated script:
    ```bash
    chmod +x setup.sh
    ./setup.sh
    ```
 
-#### Option B: Manual Setup
-1. **Install Prerequisites using Homebrew**:
-   If you don't have [Homebrew](https://brew.sh/) installed, install it:
+#### Method B: Manual Setup
+1. **Install Python via [Homebrew](https://brew.sh/):**
+   If Homebrew is not yet installed on your Mac, run:
    ```bash
    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
    ```
@@ -230,93 +250,104 @@ To run Network File Manager permanently in the background and auto-start on boot
    brew install python git
    ```
 
-2. **Create and Activate Virtual Environment**:
+2. **Create and activate a virtual environment:**
    ```bash
    python3 -m venv .venv
    source .venv/bin/activate
    ```
 
-3. **Install Dependencies**:
+3. **Install dependencies:**
    ```bash
    pip install --upgrade pip
    pip install -r requirements.txt
    ```
 
-4. **Initialize Environment Configuration**:
+4. **Initialize configuration:**
    ```bash
    cp .env.example .env
    ```
 
-5. **Start the Server**:
+5. **Launch:**
    ```bash
    python3 netmanager
    ```
 
 ---
 
-### 3. Windows (10 & 11)
+### 3. 🪟 Windows (Windows 10 & Windows 11)
 
 #### Prerequisites
-1. Download Python 3.10+ from [python.org/downloads/windows](https://www.python.org/downloads/windows/) or install via Windows Terminal / PowerShell:
+1. Download Python 3.10+ from the [Official Python Windows Downloads](https://www.python.org/downloads/windows/).
+2. Run the installer.
+   > [!IMPORTANT]
+   > On the first screen of the Python installer, you **MUST** check the box:  
+   > ☑️ **"Add python.exe to PATH"**  
+   > Then click **Install Now**.
+3. *Alternative:* You can install Python and Git using the modern **Windows Package Manager (Winget)**:
    ```powershell
    winget install Python.Python.3.12 Git.Git
    ```
-   > [!IMPORTANT]
-   > When installing Python using the GUI installer, check the box: **"Add python.exe to PATH"** at the bottom of the first setup screen!
 
-#### Option A: Automated Setup (Recommended)
-1. Open File Explorer, navigate to the `Server` folder, and **double-click `setup.bat`**.
-2. Or open **Command Prompt** / **PowerShell** and run:
-   ```cmd
-   setup.bat
-   ```
-   The batch script will automatically configure the virtual environment, install packages, create `.env`, and launch the server.
+---
 
-#### Option B: Manual Setup with Command Prompt (`cmd.exe`)
-1. Open Command Prompt and navigate to the project directory:
+#### Method A: One-Click Automated Setup (`setup.bat`)
+1. Open the `Server` folder in File Explorer.
+2. **Double-click `setup.bat`**.
+3. That's it! The script will automatically:
+   - Detect Python.
+   - Create a Python virtual environment (`.venv`).
+   - Install Flask and Waitress.
+   - Generate a secure `.env` file.
+   - Launch the server and display your local and Wi-Fi IP addresses.
+
+---
+
+#### Method B: Manual Setup via Command Prompt (`cmd.exe`)
+1. Open Command Prompt (`Win + R`, type `cmd`, press Enter).
+2. Navigate to the repository:
    ```cmd
    cd C:\path\to\Server
    ```
-2. Create and activate a virtual environment:
+3. Create and activate a virtual environment:
    ```cmd
    python -m venv .venv
    call .venv\Scripts\activate.bat
    ```
-3. Install dependencies:
+4. Install dependencies:
    ```cmd
    python -m pip install --upgrade pip
    pip install -r requirements.txt
    ```
-4. Copy the configuration template:
+5. Initialize `.env` file:
    ```cmd
    copy .env.example .env
    ```
-5. Start the server:
+6. Start the server:
    ```cmd
    python netmanager
    ```
 
-#### Option C: Manual Setup with PowerShell
-1. Open PowerShell and navigate to the project directory:
+---
+
+#### Method C: Manual Setup via PowerShell
+1. Open PowerShell.
+2. Navigate to the directory:
    ```powershell
    cd C:\path\to\Server
    ```
-2. (If running scripts is restricted on your machine, enable process execution):
+3. If running scripts is blocked by default Windows policies, permit the current session:
    ```powershell
    Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
    ```
-3. Create and activate a virtual environment:
+4. Create and activate the virtual environment:
    ```powershell
    python -m venv .venv
    .\.venv\Scripts\Activate.ps1
    ```
-4. Install dependencies:
+5. Install dependencies and copy config:
    ```powershell
    python -m pip install --upgrade pip
    pip install -r requirements.txt
-   ```
-5. Copy configuration template:
-   ```powershell
    Copy-Item .env.example .env
    ```
 6. Start the server:
@@ -324,34 +355,36 @@ To run Network File Manager permanently in the background and auto-start on boot
    python netmanager
    ```
 
-#### Option D: Using Windows Subsystem for Linux (WSL)
-If you prefer running inside Linux on Windows:
-1. Ensure WSL is enabled ([WSL Installation Guide](https://learn.microsoft.com/en-us/windows/wsl/install)):
+---
+
+#### Method D: Windows Subsystem for Linux (WSL2)
+If you prefer running inside a native Linux kernel under Windows:
+1. Open PowerShell as Administrator and run:
    ```powershell
    wsl --install
    ```
-2. Open your WSL distribution terminal (e.g., Ubuntu).
-3. Follow the [Linux Setup Instructions](#1-linux-ubuntudebianfedoraarch).
+2. Restart your computer if prompted.
+3. Open your Ubuntu/Linux terminal from the Start menu and follow the [Linux Setup Instructions](#1--linux-ubuntu-debian-fedora-arch-opensuse).
 
 ---
 
-### 4. Docker & Docker Compose (Any OS)
+### 4. 🐳 Docker & Docker Compose (Any OS)
 
-Docker provides an isolated, zero-dependency environment that runs identically on Linux, macOS, and Windows.
+Docker provides an isolated, uniform container that runs identically on Linux, macOS, and Windows with zero host dependencies.
 
 #### Prerequisites
-- Install [Docker Desktop](https://docs.docker.com/get-docker/) or [Docker Engine](https://docs.docker.com/engine/install/).
+- Install [Docker Desktop](https://docs.docker.com/get-docker/) (for Windows / Mac / Linux GUI) or [Docker Engine](https://docs.docker.com/engine/install/) (for headless Linux servers).
 
-#### Using Docker Compose (Recommended)
-1. Copy the configuration file:
+#### Running with Docker Compose (Recommended)
+1. Initialize your environment file:
    ```bash
    cp .env.example .env
    ```
-2. Build and start the container in detached mode:
+2. Launch the container in background mode:
    ```bash
    docker compose up -d
    ```
-3. Check the logs:
+3. View real-time logs:
    ```bash
    docker compose logs -f
    ```
@@ -360,12 +393,12 @@ Docker provides an isolated, zero-dependency environment that runs identically o
    docker compose down
    ```
 
-#### Using Docker CLI Directly
+#### Running with Docker CLI Directly
 ```bash
-# Build the Docker image
+# 1. Build container image
 docker build -t netmanager:latest .
 
-# Run container with volume mounted to ./data
+# 2. Run container with data volume mounted
 docker run -d \
   --name netmanager \
   --restart unless-stopped \
@@ -376,89 +409,85 @@ docker run -d \
 
 ---
 
-## Configuration & Environment Variables
+## ⚙️ Configuration & Environment Variables
 
-Configuration is handled through environment variables, which can be defined in your `.env` file or passed via shell / Docker.
+All settings can be configured via the `.env` file or directly passed as environment variables.
 
-### Variables Reference
-
-| Variable | Default Value | Description |
+| Environment Variable | Default Value | Description |
 | :--- | :--- | :--- |
-| `SECRET_KEY` | Random generated string | Flask session signing key. Set a long random string for production to keep user sessions persistent across restarts. |
-| `NETMANAGER_PASSWORD` | *(empty / none)* | Server login password. If set, prompts users to authenticate before viewing or modifying files. Leave empty for open access on trusted LAN. |
-| `NETMANAGER_PORT` | `8080` | Port on which the application listens. |
-| `NETMANAGER_DATA_DIR` | `./data` | File system directory served by the manager when running directly on the host machine. |
-| `HOST_PORT` | `8080` | Host port exposed when running via Docker Compose. |
-| `HOST_DATA_DIR` | `./data` | Host directory mounted into container `/data` when running via Docker Compose. |
+| `SECRET_KEY` | *(Auto-generated random hex)* | Key used to cryptographically sign user sessions and CSRF tokens. Set a permanent long string in production. |
+| `NETMANAGER_PASSWORD` | *(None / Empty)* | Optional authentication password. If left blank, the server is open to anyone with network access. If set, a clean login screen is required. |
+| `NETMANAGER_PORT` | `8080` | Port the web application listens on. |
+| `NETMANAGER_DATA_DIR` | `./data` | Directory on the host that is served by the file manager when running directly (outside Docker). |
+| `HOST_PORT` | `8080` | Port published to the host machine when using Docker Compose. |
+| `HOST_DATA_DIR` | `./data` | Host folder bound to `/data` inside the container when using Docker Compose. |
 
-### Command Line Arguments
-You can also override the port and password directly on the command line:
+### CLI Override Format
+You can override port and password on the command line without modifying files:
 ```bash
-# Format: python netmanager [PORT] [PASSWORD]
-python3 netmanager 9000 mysecretpassword
+# Usage: python netmanager [PORT] [PASSWORD]
+python3 netmanager 9000 mySecretPassword
 ```
 
 ---
 
-## Connecting from Phones & LAN Devices
+## 📱 Connecting from Phones & LAN Devices
 
-When Network File Manager starts, it prints your local IP address:
+When started, Network File Manager calculates your device's LAN IP address and prints connection links in the terminal:
 
 ```text
 File Manager running
 Directory: /home/sam/Projects/Server/data
-Security: PASSWORD PROTECTED
-Local:   http://localhost:8080
-Network: http://192.168.1.150:8080
+Security:  PASSWORD PROTECTED
+Local:     http://localhost:8080
+Network:   http://192.168.1.150:8080
 ```
 
-To connect from another device (iPhone, Android, tablet, or another computer on the same Wi-Fi network):
-1. Make sure both devices are connected to the same Wi-Fi or router network.
-2. Open a web browser on your phone/device.
-3. Enter the **Network** address shown in your console (e.g., `http://192.168.1.150:8080`).
+### Steps to Access from Phone or Tablet:
+1. Ensure both your computer and your phone/tablet are connected to the **same Wi-Fi router**.
+2. Open Safari, Chrome, or any mobile browser on your phone.
+3. Type the **Network** URL shown in your terminal (e.g., `http://192.168.1.150:8080`).
 
-### How to Find Your Local IP Manually
-- **Linux**:
+### Finding Your Local IP Manually
+- **Linux:**
   ```bash
   ip -brief address
   # or
   hostname -I
   ```
-- **macOS**:
+- **macOS:**
   ```bash
   ipconfig getifaddr en0   # Wi-Fi
-  # or
   ipconfig getifaddr en1   # Ethernet
   ```
-- **Windows**:
+- **Windows:**
   ```cmd
   ipconfig
   ```
-  Look for the `IPv4 Address` under your active Wi-Fi or Ethernet adapter (usually `192.168.x.x` or `10.x.x.x`).
+  Look for `IPv4 Address` under your active Wireless LAN adapter or Ethernet adapter (e.g., `192.168.x.x`).
 
 ---
 
-## Production & Reverse Proxy (Nginx / Caddy)
+## 🛡️ Production & Reverse Proxy Guide
 
-For public internet exposure, always configure SSL/TLS encryption using a reverse proxy.
+When exposing Network File Manager over the public internet, always use a reverse proxy with HTTPS/TLS encryption.
 
 ### Nginx Configuration
 ```nginx
 server {
     listen 80;
-    server_name files.yourdomain.com;
+    server_name files.example.com;
     return 301 https://$host$request_uri;
 }
 
 server {
     listen 443 ssl http2;
-    server_name files.yourdomain.com;
+    server_name files.example.com;
 
-    ssl_certificate /etc/letsencrypt/live/files.yourdomain.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/files.yourdomain.com/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/files.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/files.example.com/privkey.pem;
 
-    # Allow large file uploads
-    client_max_body_size 10G;
+    client_max_body_size 10G;  # Support large uploads
 
     location / {
         proxy_pass http://127.0.0.1:8080;
@@ -466,17 +495,15 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-
-        # Disable buffering for fast streaming/uploads
         proxy_buffering off;
         proxy_request_buffering off;
     }
 }
 ```
 
-### Caddy Configuration (`Caddyfile`)
+### Caddyfile (Automatic SSL)
 ```caddy
-files.yourdomain.com {
+files.example.com {
     reverse_proxy 127.0.0.1:8080 {
         header_up Host {host}
         header_up X-Real-IP {remote_host}
@@ -486,48 +513,44 @@ files.yourdomain.com {
 
 ---
 
-## Troubleshooting & FAQ
+## ❓ Troubleshooting & FAQ
 
-### 1. Port is already in use (`Address already in use`)
-Network File Manager includes automatic port failover: if port `8080` is busy, it automatically scans and binds to the next free port (`8081`, `8082`, etc.). You can also specify an exact port:
+### 1. Port 8080 is already busy
+*Solution:* Network File Manager has automatic port collision resolution. It will scan ports `8081` through `8130` and bind to the first open port automatically. You can also manually choose a specific port:
 ```bash
 python3 netmanager 8888
 ```
 
-### 2. Cannot connect from mobile phone or other computers
-- Ensure both devices are connected to the same Wi-Fi / Local Area Network.
-- Check your host firewall settings:
-  - **Linux (UFW)**:
-    ```bash
-    sudo ufw allow 8080/tcp
-    ```
-  - **Windows**:
-    Open Windows Defender Firewall > Allow an app or feature through Windows Defender Firewall > ensure Python is allowed for Private networks.
-  - **macOS**:
-    Go to `System Settings > Network > Firewall` and ensure Python is permitted to receive incoming connections.
+### 2. Cannot connect from phone or other computers on Wi-Fi
+*Solution:* Check your operating system's firewall rules:
+- **Linux (UFW):**
+  ```bash
+  sudo ufw allow 8080/tcp
+  ```
+- **Windows Firewall:**
+  1. Open *Windows Defender Firewall with Advanced Security*.
+  2. Create an **Inbound Rule** allowing TCP port `8080`.
+  3. Ensure your Wi-Fi network profile is set to **Private**, not Public.
+- **macOS Firewall:**
+  Go to *System Settings > Network > Firewall* and verify Python is permitted to receive incoming network connections.
 
 ### 3. Windows PowerShell script execution error
-If you receive `File ... cannot be loaded because running scripts is disabled on this system`:
-Run PowerShell as Administrator or allow process-level execution:
+*Issue:* `File ...\Activate.ps1 cannot be loaded because running scripts is disabled on this system.`  
+*Solution:* Run:
 ```powershell
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 ```
 
-### 4. Permission denied when creating folders or uploading files
-Ensure the user running the process has write permissions on the data directory:
+### 4. Permission Denied on Linux or Docker volumes
+*Solution:* If running via Docker or on Linux with permissions issues on `./data`:
 ```bash
-# Linux / macOS
 chmod -R u+rwX data/
-```
-
-### 5. Docker volume permission issues
-If files written by Docker belong to `10001:10001` (the non-root `appuser`), adjust the host directory permissions:
-```bash
+# If Docker uses UID 10001 (appuser):
 sudo chown -R 10001:10001 data/
 ```
 
 ---
 
-## License
+## 📄 License
 
-This project is licensed under the [MIT License](https://opensource.org/licenses/MIT). You are free to modify, distribute, and use it for personal or commercial projects.
+This repository is distributed under the terms of the **[MIT License](https://opensource.org/licenses/MIT)**. Feel free to use, modify, and distribute it for personal or commercial applications.

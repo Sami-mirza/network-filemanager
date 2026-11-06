@@ -1,0 +1,699 @@
+#!/usr/bin/env python3
+"""
+Network File Manager
+
+Usage:
+  python3 netmanager [port] [password]
+  NETMANAGER_PORT=8080 NETMANAGER_PASSWORD=secret python3 netmanager
+
+Needs: pip install -r requirements.txt
+
+Callers: Dockerfile CMD, docker-compose, setup.sh (CLI entrypoint; not imported as a module).
+"""
+import codecs
+import hmac
+import io
+import mimetypes
+import os
+import secrets
+import shutil
+import socket
+import sys
+import zipfile
+from datetime import datetime
+
+from flask import (Flask, abort, flash, redirect, render_template_string,
+                   request, send_file, send_from_directory, session, url_for)
+from werkzeug.utils import secure_filename
+
+def load_dotenv(dotenv_path='.env'):
+    """Load key-value pairs from .env into os.environ if not already set."""
+    if not os.path.isfile(dotenv_path):
+        return
+    try:
+        with open(dotenv_path, 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith('#') or '=' not in line:
+                    continue
+                k, v = line.split('=', 1)
+                k = k.strip()
+                v = v.strip().strip("'\"")
+                if k and k not in os.environ:
+                    os.environ[k] = v
+    except OSError:
+        pass
+
+
+load_dotenv()
+
+app = Flask(__name__)
+app.secret_key = os.environ.get('SECRET_KEY') or os.urandom(24)
+
+# Serves filesystem under BASE_DIR. Timestamps: '%Y-%m-%d %H:%M'. Session: csrf, authenticated.
+BASE_DIR = os.path.realpath(
+    os.environ.get('NETMANAGER_DATA_DIR') or os.environ.get('DATA_DIR') or os.path.join(os.getcwd(), 'data')
+)
+os.makedirs(BASE_DIR, exist_ok=True)
+PASSWORD = os.environ.get('NETMANAGER_PASSWORD') or os.environ.get('PASSWORD') or None
+MAX_EDIT_SIZE = 2 * 1024 * 1024  # 2 MB
+
+IMAGE_EXT = {'.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.svg', '.ico', '.avif'}
+VIDEO_EXT = {'.mp4', '.webm', '.mkv', '.mov', '.ogv'}
+AUDIO_EXT = {'.mp3', '.wav', '.ogg', '.m4a', '.flac', '.aac'}
+TAGS = {'image': 'IMG', 'video': 'VID', 'audio': 'AUD', 'pdf': 'PDF', 'text': 'TXT',
+        'archive': 'ZIP', 'binary': 'BIN'}
+ARCHIVE_EXT = {'.zip', '.tar', '.gz', '.rar', '.7z', '.bz2', '.xz'}
+
+
+# ───────────────────────── helpers ─────────────────────────
+def get_real_ip():
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.settimeout(2)
+    try:
+        s.connect(('8.8.8.8', 1))
+        return s.getsockname()[0]
+    except Exception:
+        return '127.0.0.1'
+    finally:
+        s.close()
+
+
+def port_free(port):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        return s.connect_ex(('127.0.0.1', port)) != 0
+
+
+def safe_resolve(path_url):
+    """Resolve a user path inside BASE_DIR (blocks ../ and symlink escapes)."""
+    target = os.path.realpath(os.path.join(BASE_DIR, path_url or ''))
+    try:
+        if os.path.commonpath([BASE_DIR, target]) != BASE_DIR:
+            abort(403)
+    except ValueError:
+        abort(403)
+    return target
+
+
+def rel(path):
+    r = os.path.relpath(path, BASE_DIR).replace('\\', '/')
+    return '' if r == '.' else r
+
+
+def human_size(n):
+    for unit in ('B', 'KB', 'MB', 'GB', 'TB'):
+        if n < 1024:
+            return f"{n:.0f} {unit}" if unit == 'B' else f"{n:.1f} {unit}"
+        n /= 1024
+    return f"{n:.1f} PB"
+
+
+def human_time(ts):
+    return datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M')
+
+
+def file_kind(path):
+    """image | video | audio | pdf | archive | text | binary"""
+    ext = os.path.splitext(path)[1].lower()
+    if ext in IMAGE_EXT:
+        return 'image'
+    if ext in VIDEO_EXT:
+        return 'video'
+    if ext in AUDIO_EXT:
+        return 'audio'
+    if ext == '.pdf':
+        return 'pdf'
+    if ext in ARCHIVE_EXT:
+        return 'archive'
+    return 'text' if is_text_file(path) else 'binary'
+
+
+def is_text_file(path):
+    """Real content check: no NUL bytes and valid UTF-8."""
+    try:
+        with open(path, 'rb') as f:
+            chunk = f.read(8192)
+    except OSError:
+        return False
+    if not chunk:
+        return True
+    if b'\0' in chunk:
+        return False
+    try:
+        codecs.getincrementaldecoder('utf-8')().decode(chunk, final=False)
+        return True
+    except UnicodeDecodeError:
+        return False
+
+
+def clean_name(name):
+    name = secure_filename((name or '').strip())
+    if not name or name.startswith('.'):
+        return None
+    return name
+
+
+def back_to(path_url):
+    return redirect(url_for('browse_path', path_url=path_url))
+
+
+# ───────────────────────── template ─────────────────────────
+HTML_TEMPLATE = """
+<!DOCTYPE html>
+<html>
+<head>
+<title>File Manager</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+:root { --bg:#f5f6f8; --card:#ffffff; --text:#1f2933; --muted:#6b7480; --line:#e4e7eb; --accent:#1f4fd8; --accent-h:#1a42b3; --danger:#c62828; --head:#fafbfc; }
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111317; --card:#1a1d23; --text:#e6e8eb; --muted:#8c94a0; --line:#2a2e36; --accent:#5b8def; --accent-h:#7aa2f5; --danger:#ef6b6b; --head:#1f232a; }
+}
+* { box-sizing: border-box; }
+body { font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; font-size:14px; background:var(--bg); color:var(--text); max-width:1000px; margin:0 auto; padding:24px 16px; }
+a { color:var(--accent); text-decoration:none; }
+a:hover { text-decoration:underline; }
+.topbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; padding-bottom:14px; border-bottom:1px solid var(--line); }
+.topbar h1 { font-size:18px; font-weight:600; margin:0; letter-spacing:.2px; }
+.card { background:var(--card); border:1px solid var(--line); border-radius:6px; margin-bottom:16px; }
+.card-pad { padding:16px; }
+.breadcrumb { font-size:13px; color:var(--muted); word-break:break-all; }
+.breadcrumb .sep { margin:0 6px; color:var(--line); }
+.breadcrumb .cur { color:var(--text); font-weight:600; }
+.toolbar { display:flex; gap:20px; flex-wrap:wrap; padding:16px; }
+.toolbar form { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+input[type=text], input[type=password], input[type=search], input[type=file] {
+  padding:7px 10px; border:1px solid var(--line); border-radius:4px; background:var(--card); color:var(--text); font-size:13px; max-width:100%; }
+input:focus, textarea:focus { outline:2px solid var(--accent); outline-offset:-1px; }
+.btn { padding:7px 14px; border-radius:4px; border:1px solid var(--line); cursor:pointer; font-size:13px; font-weight:500; background:var(--card); color:var(--text); display:inline-block; text-decoration:none; line-height:1.3; }
+.btn:hover { background:var(--head); text-decoration:none; }
+.btn-primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+.btn-primary:hover { background:var(--accent-h); border-color:var(--accent-h); }
+.btn-danger { color:var(--danger); }
+.btn-sm { padding:4px 10px; font-size:12px; }
+.flash { padding:10px 14px; border-radius:4px; margin-bottom:14px; font-size:13px; border:1px solid; }
+.flash.ok { background:rgba(34,139,84,.1); border-color:rgba(34,139,84,.35); color:#1f7a4d; }
+.flash.err { background:rgba(198,40,40,.08); border-color:rgba(198,40,40,.35); color:var(--danger); }
+.filter-row { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; padding:12px 16px; border-bottom:1px solid var(--line); }
+.filter-row input { width:260px; }
+.stats { font-size:12px; color:var(--muted); }
+table { width:100%; border-collapse:collapse; }
+th { text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.6px; color:var(--muted); font-weight:600; padding:10px 16px; background:var(--head); border-bottom:1px solid var(--line); }
+td { padding:10px 16px; border-bottom:1px solid var(--line); vertical-align:middle; }
+tr:last-child td { border-bottom:none; }
+tbody tr:hover { background:var(--head); }
+.name-cell { display:flex; align-items:center; gap:10px; min-width:0; }
+.name-cell a { color:var(--text); font-weight:500; word-break:break-all; }
+.name-cell a:hover { color:var(--accent); }
+.ico { flex:0 0 auto; width:34px; text-align:center; font-size:9px; font-weight:700; letter-spacing:.5px; padding:3px 0; border-radius:3px; color:#fff; background:#7b8794; }
+.ico-dir { background:#c98a1b; } .ico-image { background:#2f855a; } .ico-video { background:#7c3aed; }
+.ico-audio { background:#c2410c; } .ico-pdf { background:#c62828; } .ico-text { background:#3b6fd4; }
+.ico-archive { background:#6b5b3e; } .ico-binary { background:#5f6b7a; }
+.muted { color:var(--muted); white-space:nowrap; }
+.actions { display:flex; gap:6px; justify-content:flex-end; flex-wrap:wrap; }
+textarea { width:100%; height:62vh; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:13px; line-height:1.5; padding:12px; border:1px solid var(--line); border-radius:4px; background:var(--card); color:var(--text); resize:vertical; }
+.page-title { font-size:16px; font-weight:600; margin:0 0 4px 0; word-break:break-all; }
+.meta { font-size:12px; color:var(--muted); }
+.btn-row { display:flex; gap:8px; margin-top:14px; flex-wrap:wrap; }
+.preview { text-align:center; padding:16px; }
+.preview img, .preview video { max-width:100%; max-height:75vh; border-radius:4px; }
+.preview audio { width:100%; }
+.preview iframe { width:100%; height:75vh; border:none; }
+.empty { text-align:center; color:var(--muted); padding:36px 16px; }
+@media (max-width:640px) { .hide-sm { display:none; } th, td { padding:10px 10px; } .filter-row input { width:100%; } }
+</style>
+</head>
+<body>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for cat, msg in messages %}<div class="flash {{ cat }}">{{ msg }}</div>{% endfor %}
+{% endwith %}
+
+{% if mode == 'login' %}
+  <div class="card card-pad" style="max-width:380px;margin:90px auto;">
+    <h2 style="margin:0 0 14px 0;font-size:17px;">Sign in</h2>
+    <form method="POST" action="{{ url_for('login') }}" style="display:flex;gap:8px;">
+      <input type="password" name="password" placeholder="Server password" required autofocus style="flex:1">
+      <button class="btn btn-primary" type="submit">Unlock</button>
+    </form>
+    {% if error %}<p style="color:var(--danger);margin:12px 0 0 0;font-size:13px;">Incorrect password.</p>{% endif %}
+  </div>
+
+{% else %}
+  <div class="topbar">
+    <h1>File Manager</h1>
+    {% if password_on %}<a class="btn btn-sm" href="{{ url_for('logout') }}">Sign out</a>{% endif %}
+  </div>
+
+  {% if mode == 'list' %}
+    <div class="card card-pad">
+      <div class="breadcrumb">
+        <a href="{{ url_for('browse_path') }}">Root</a>
+        {% if current_rel_path %}
+          {% set parts = current_rel_path.split('/') %}
+          {% for i in range(parts|length) %}<span class="sep">/</span>{% if loop.last %}<span class="cur">{{ parts[i] }}</span>{% else %}<a href="{{ url_for('browse_path', path_url='/'.join(parts[:i+1])) }}">{{ parts[i] }}</a>{% endif %}{% endfor %}
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card toolbar">
+      <form method="POST" action="{{ url_for('upload_file') }}" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="path" value="{{ current_rel_path }}">
+        <input type="file" name="files" multiple required>
+        <button class="btn btn-primary" type="submit">Upload</button>
+      </form>
+      <form method="POST" action="{{ url_for('make_dir') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="path" value="{{ current_rel_path }}">
+        <input type="text" name="name" placeholder="Folder name" required>
+        <button class="btn" type="submit">New folder</button>
+      </form>
+      <form method="POST" action="{{ url_for('new_file') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="path" value="{{ current_rel_path }}">
+        <input type="text" name="name" placeholder="File name, e.g. notes.txt" required>
+        <button class="btn" type="submit">New file</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <div class="filter-row">
+        <input type="search" id="search" placeholder="Filter this folder" oninput="filterList()">
+        <div class="stats">{{ n_dirs }} folders, {{ n_files }} files, {{ total_size }}
+          &nbsp;|&nbsp;
+          {% if current_rel_path %}<a href="{{ url_for('download_zip', path_url=current_rel_path) }}">Download folder (ZIP)</a>{% else %}<a href="{{ url_for('download_zip') }}">Download all (ZIP)</a>{% endif %}
+        </div>
+      </div>
+      <table>
+        <thead><tr><th>Name</th><th class="hide-sm">Size</th><th class="hide-sm">Modified</th><th style="text-align:right">Actions</th></tr></thead>
+        <tbody id="list">
+          {% if current_rel_path %}
+          <tr><td colspan="4"><div class="name-cell"><span class="ico ico-dir">UP</span><a href="{{ url_for('browse_path', path_url=parent_path) }}">Parent folder</a></div></td></tr>
+          {% endif %}
+          {% for item in items %}
+          <tr data-name="{{ item.name|lower }}">
+            <td>
+              <div class="name-cell">
+                <span class="ico ico-{{ item.kind or 'dir' }}">{{ item.tag }}</span>
+                {% if item.is_dir %}<a href="{{ url_for('browse_path', path_url=item.rel_path) }}">{{ item.name }}</a>
+                {% else %}<a href="{{ url_for('open_file', file_path_url=item.rel_path) }}">{{ item.name }}</a>{% endif %}
+              </div>
+            </td>
+            <td class="muted hide-sm">{{ item.size or '-' }}</td>
+            <td class="muted hide-sm">{{ item.mtime }}</td>
+            <td>
+              <div class="actions">
+                {% if item.is_dir %}
+                  <a class="btn btn-sm" href="{{ url_for('download_zip', path_url=item.rel_path) }}">ZIP</a>
+                {% else %}
+                  <a class="btn btn-sm" href="{{ url_for('download_file', file_path_url=item.rel_path) }}">Download</a>
+                  {% if item.kind == 'text' %}<a class="btn btn-sm" href="{{ url_for('edit_file', file_path_url=item.rel_path) }}">Edit</a>{% endif %}
+                {% endif %}
+                <button class="btn btn-sm" data-path="{{ item.rel_path }}" data-name="{{ item.name }}" onclick="renameItem(this)">Rename</button>
+                <button class="btn btn-sm btn-danger" data-path="{{ item.rel_path }}" data-name="{{ item.name }}" onclick="deleteItem(this)">Delete</button>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+          {% if not items %}<tr><td colspan="4" class="empty">This folder is empty.</td></tr>{% endif %}
+        </tbody>
+      </table>
+    </div>
+
+    <form id="rename-form" method="POST" action="{{ url_for('rename_item') }}" style="display:none">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input type="hidden" name="path" value="{{ current_rel_path }}">
+      <input type="hidden" name="target" id="rn-target"><input type="hidden" name="name" id="rn-name">
+    </form>
+    <form id="delete-form" method="POST" action="{{ url_for('delete_item') }}" style="display:none">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input type="hidden" name="path" value="{{ current_rel_path }}">
+      <input type="hidden" name="target" id="del-target">
+    </form>
+    <script>
+      function filterList() {
+        const q = document.getElementById('search').value.toLowerCase();
+        document.querySelectorAll('#list tr[data-name]').forEach(tr => {
+          tr.style.display = tr.dataset.name.includes(q) ? '' : 'none';
+        });
+      }
+      function renameItem(btn) {
+        const old = btn.dataset.name;
+        const n = prompt('New name:', old);
+        if (n && n !== old) {
+          document.getElementById('rn-target').value = btn.dataset.path;
+          document.getElementById('rn-name').value = n;
+          document.getElementById('rename-form').submit();
+        }
+      }
+      function deleteItem(btn) {
+        if (confirm('Delete "' + btn.dataset.name + '"? This cannot be undone.')) {
+          document.getElementById('del-target').value = btn.dataset.path;
+          document.getElementById('delete-form').submit();
+        }
+      }
+    </script>
+
+  {% elif mode == 'view' %}
+    <div class="card card-pad">
+      <h2 class="page-title">{{ filename }}</h2>
+      <div class="meta">{{ size }} &middot; {{ mtime }} &middot; {{ mime }}</div>
+      <div class="btn-row">
+        <a class="btn" href="{{ url_for('browse_path', path_url=parent_path) }}">Back</a>
+        <a class="btn btn-primary" href="{{ url_for('download_file', file_path_url=file_path_url) }}">Download</a>
+        {% if editable %}<a class="btn" href="{{ url_for('edit_file', file_path_url=file_path_url) }}">Edit as text</a>{% endif %}
+      </div>
+    </div>
+    <div class="card preview">
+      {% set src = url_for('raw_file', file_path_url=file_path_url) %}
+      {% if kind == 'image' %}<img src="{{ src }}" alt="{{ filename }}">
+      {% elif kind == 'video' %}<video src="{{ src }}" controls></video>
+      {% elif kind == 'audio' %}<audio src="{{ src }}" controls></audio>
+      {% elif kind == 'pdf' %}<iframe src="{{ src }}"></iframe>
+      {% else %}
+        <div class="empty">Preview is not available for this file type.<br>Binary files cannot be displayed or edited as text. Use Download to open it on your device.</div>
+      {% endif %}
+    </div>
+
+  {% elif mode == 'edit' %}
+    <div class="card card-pad">
+      <h2 class="page-title">Editing: {{ filename }}</h2>
+      <form method="POST" action="{{ url_for('save_file', file_path_url=file_path_url) }}" style="margin-top:12px">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <textarea name="content" spellcheck="false">{{ content }}</textarea>
+        <div class="btn-row">
+          <button class="btn btn-primary" type="submit">Save changes</button>
+          <a class="btn" href="{{ url_for('browse_path', path_url=parent_path) }}">Cancel</a>
+        </div>
+      </form>
+    </div>
+  {% endif %}
+{% endif %}
+</body>
+</html>
+"""
+
+
+def render(**kw):
+    return render_template_string(HTML_TEMPLATE, csrf_token=session.get('csrf', ''),
+                                  password_on=bool(PASSWORD), **kw)
+
+
+# ───────────────────────── security ─────────────────────────
+@app.before_request
+def security():
+    if 'csrf' not in session:
+        session['csrf'] = secrets.token_hex(16)
+    if PASSWORD and not session.get('authenticated') and request.endpoint not in ('login',):
+        return render(mode='login', error=False)
+    if request.method == 'POST' and request.endpoint != 'login':
+        if not hmac.compare_digest(request.form.get('csrf_token', ''), session['csrf']):
+            abort(400, 'Bad CSRF token')
+
+
+@app.after_request
+def headers(resp):
+    resp.headers['X-Content-Type-Options'] = 'nosniff'
+    return resp
+
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST' and PASSWORD and \
+            hmac.compare_digest(request.form.get('password', ''), PASSWORD):
+        session['authenticated'] = True
+        return redirect(url_for('browse_path'))
+    return render(mode='login', error=request.method == 'POST')
+
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('login'))
+
+
+# ───────────────────────── browsing ─────────────────────────
+@app.route('/')
+@app.route('/browse/')
+@app.route('/browse/<path:path_url>')
+def browse_path(path_url=""):
+    target_dir = safe_resolve(path_url)
+    if not os.path.isdir(target_dir):
+        abort(404)
+    try:
+        entries = os.listdir(target_dir)
+    except PermissionError:
+        abort(403)
+
+    items, total = [], 0
+    for entry in entries:
+        if entry.startswith('.'):
+            continue
+        full = os.path.join(target_dir, entry)
+        try:
+            st = os.stat(full)
+        except OSError:
+            continue
+        is_dir = os.path.isdir(full)
+        kind = None if is_dir else file_kind(full)
+        if not is_dir:
+            total += st.st_size
+        items.append({
+            'name': entry, 'is_dir': is_dir, 'rel_path': rel(full), 'kind': kind,
+            'tag': TAGS.get(kind, 'BIN') if kind else 'DIR',
+            'size': '' if is_dir else human_size(st.st_size),
+            'mtime': human_time(st.st_mtime),
+        })
+    items.sort(key=lambda x: (not x['is_dir'], x['name'].lower()))
+    n_dirs = sum(1 for i in items if i['is_dir'])
+
+    return render(mode='list', items=items, current_rel_path=rel(target_dir),
+                  parent_path=os.path.dirname(rel(target_dir)),
+                  n_dirs=n_dirs, n_files=len(items) - n_dirs, total_size=human_size(total))
+
+
+@app.route('/open/<path:file_path_url>')
+def open_file(file_path_url):
+    """Smart viewer: image/video/audio/pdf preview, text -> editor, binary -> info page."""
+    target = safe_resolve(file_path_url)
+    if not os.path.isfile(target):
+        abort(404)
+    kind = file_kind(target)
+    if kind == 'text':
+        return redirect(url_for('edit_file', file_path_url=file_path_url))
+    st = os.stat(target)
+    return render(mode='view', kind=kind,                   filename=os.path.basename(target), file_path_url=file_path_url,
+                  parent_path=os.path.dirname(file_path_url), size=human_size(st.st_size),
+                  mtime=human_time(st.st_mtime),
+                  mime=mimetypes.guess_type(target)[0] or 'unknown type',
+                  editable=(os.path.splitext(target)[1].lower() == '.svg'))
+
+
+@app.route('/raw/<path:file_path_url>')
+def raw_file(file_path_url):
+    """Inline serving for previews (not forced download)."""
+    target = safe_resolve(file_path_url)
+    if not os.path.isfile(target):
+        abort(404)
+    resp = send_from_directory(os.path.dirname(target), os.path.basename(target), as_attachment=False)
+    if target.lower().endswith('.svg'):  # keep SVG scripts from running
+        resp.headers['Content-Security-Policy'] = "default-src 'none'; style-src 'unsafe-inline'; img-src data:"
+    return resp
+
+
+@app.route('/download/<path:file_path_url>')
+def download_file(file_path_url):
+    target = safe_resolve(file_path_url)
+    if not os.path.isfile(target):
+        abort(404)
+    return send_from_directory(os.path.dirname(target), os.path.basename(target), as_attachment=True)
+
+
+@app.route('/zip/')
+@app.route('/zip/<path:path_url>')
+def download_zip(path_url=""):
+    target = safe_resolve(path_url)
+    if not os.path.isdir(target):
+        abort(404)
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as z:
+        for root, dirs, files in os.walk(target):
+            dirs[:] = [d for d in dirs if not d.startswith('.')]
+            for f in files:
+                if f.startswith('.'):
+                    continue
+                full = os.path.join(root, f)
+                if os.path.realpath(full).startswith(BASE_DIR):
+                    z.write(full, os.path.relpath(full, target))
+    buf.seek(0)
+    name = (os.path.basename(target) or 'files') + '.zip'
+    return send_file(buf, as_attachment=True, download_name=name, mimetype='application/zip')
+
+
+# ───────────────────────── editing ─────────────────────────
+@app.route('/edit/<path:file_path_url>')
+def edit_file(file_path_url):
+    target = safe_resolve(file_path_url)
+    if not os.path.isfile(target):
+        abort(404)
+    if os.path.getsize(target) > MAX_EDIT_SIZE:
+        flash('File is too large to edit in the browser (limit 2 MB).', 'err')
+        return redirect(url_for('open_file_info', file_path_url=file_path_url))
+    if not is_text_file(target):
+        flash("Binary files cannot be edited as text.", 'err')
+        return redirect(url_for('open_file_info', file_path_url=file_path_url))
+    with open(target, 'r', encoding='utf-8', errors='replace') as f:
+        content = f.read()
+    return render(mode='edit', file_path_url=file_path_url, filename=os.path.basename(target),
+                  content=content, parent_path=os.path.dirname(file_path_url))
+
+
+@app.route('/info/<path:file_path_url>')
+def open_file_info(file_path_url):
+    target = safe_resolve(file_path_url)
+    if not os.path.isfile(target):
+        abort(404)
+    st = os.stat(target)
+    return render(mode='view', kind='binary', filename=os.path.basename(target),
+                  file_path_url=file_path_url, parent_path=os.path.dirname(file_path_url),
+                  size=human_size(st.st_size), mtime=human_time(st.st_mtime),
+                  mime=mimetypes.guess_type(target)[0] or 'unknown type', editable=False)
+
+
+@app.route('/save/<path:file_path_url>', methods=['POST'])
+def save_file(file_path_url):
+    target = safe_resolve(file_path_url)
+    if not os.path.isfile(target):
+        abort(404)
+    content = request.form.get('content', '').replace('\r\n', '\n')
+    try:
+        with open(target, 'w', encoding='utf-8', newline='') as f:
+            f.write(content)
+        flash('Changes saved.', 'ok')
+    except OSError as e:
+        flash(f'Could not save: {e}', 'err')
+    return back_to(os.path.dirname(file_path_url))
+
+
+# ───────────────────────── file operations ─────────────────────────
+@app.route('/upload', methods=['POST'])
+def upload_file():
+    path = request.form.get('path', '')
+    target_dir = safe_resolve(path)
+    saved = 0
+    for file in request.files.getlist('files'):
+        name = secure_filename(file.filename or '')
+        if not name:
+            continue
+        file.save(os.path.join(target_dir, name))
+        saved += 1
+    flash(f'Uploaded {saved} file(s).' if saved else 'No valid file selected.', 'ok' if saved else 'err')
+    return back_to(path)
+
+
+@app.route('/mkdir', methods=['POST'])
+def make_dir():
+    path = request.form.get('path', '')
+    name = clean_name(request.form.get('name'))
+    if not name:
+        flash('Invalid folder name.', 'err')
+    else:
+        try:
+            os.mkdir(os.path.join(safe_resolve(path), name))
+            flash(f'Folder "{name}" created.', 'ok')
+        except FileExistsError:
+            flash('A folder with that name already exists.', 'err')
+        except OSError as e:
+            flash(str(e), 'err')
+    return back_to(path)
+
+
+@app.route('/newfile', methods=['POST'])
+def new_file():
+    path = request.form.get('path', '')
+    name = clean_name(request.form.get('name'))
+    if not name:
+        flash('Invalid file name.', 'err')
+        return back_to(path)
+    full = os.path.join(safe_resolve(path), name)
+    if os.path.exists(full):
+        flash('That name already exists.', 'err')
+        return back_to(path)
+    open(full, 'w').close()
+    return redirect(url_for('edit_file', file_path_url=rel(full)))
+
+
+@app.route('/rename', methods=['POST'])
+def rename_item():
+    path = request.form.get('path', '')
+    src = safe_resolve(request.form.get('target', ''))
+    name = clean_name(request.form.get('name'))
+    if src == BASE_DIR or not os.path.exists(src):
+        abort(404)
+    if not name:
+        flash('Invalid name.', 'err')
+        return back_to(path)
+    dst = os.path.join(os.path.dirname(src), name)
+    if os.path.exists(dst):
+        flash('That name already exists.', 'err')
+    else:
+        os.rename(src, dst)
+        flash('Renamed successfully.', 'ok')
+    return back_to(path)
+
+
+@app.route('/delete', methods=['POST'])
+def delete_item():
+    path = request.form.get('path', '')
+    target = safe_resolve(request.form.get('target', ''))
+    if target == BASE_DIR or not os.path.exists(target):
+        abort(404)
+    try:
+        if os.path.isdir(target) and not os.path.islink(target):
+            shutil.rmtree(target)
+        else:
+            os.remove(target)
+        flash('Deleted successfully.', 'ok')
+    except OSError as e:
+        flash(f'Could not delete: {e}', 'err')
+    return back_to(path)
+
+
+# ───────────────────────── main ─────────────────────────
+def configure_from_args():
+    """Apply CLI args over env defaults. Returns listen port."""
+    global PASSWORD
+    port = int(os.environ.get('NETMANAGER_PORT') or os.environ.get('PORT') or 8080)
+    if len(sys.argv) > 1:
+        try:
+            port = int(sys.argv[1])
+        except ValueError:
+            print("Invalid port. Using default 8080.")
+            port = 8080
+    if len(sys.argv) > 2:
+        PASSWORD = sys.argv[2]
+    return port
+
+
+if __name__ == '__main__':
+    PORT = configure_from_args()
+    if not port_free(PORT):
+        for alt in range(PORT + 1, PORT + 50):
+            if port_free(alt):
+                print(f"Port {PORT} is busy, using {alt} instead.")
+                PORT = alt
+                break
+        else:
+            sys.exit(f"Port {PORT} is busy and no free port was found nearby.")
+    ip = get_real_ip()
+    print("\nFile Manager running")
+    print(f"Directory: {BASE_DIR}")
+    print(f"Security: {'PASSWORD PROTECTED' if PASSWORD else 'NO PASSWORD (open to your local network)'}")
+    print(f"Local: http://localhost:{PORT}")
+    print(f"Network: http://{ip}:{PORT}\n")
+    try:
+        from waitress import serve
+        serve(app, host='0.0.0.0', port=PORT)
+    except ImportError:
+        app.run(host='0.0.0.0', port=PORT, debug=False)

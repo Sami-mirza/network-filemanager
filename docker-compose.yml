@@ -1,0 +1,17 @@
+services:
+  netmanager:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: netmanager:latest
+    container_name: netmanager
+    restart: unless-stopped
+    ports:
+      - "${HOST_PORT:-8080}:${NETMANAGER_PORT:-8080}"
+    environment:
+      - SECRET_KEY=${SECRET_KEY:-}
+      - NETMANAGER_PASSWORD=${NETMANAGER_PASSWORD:-}
+      - NETMANAGER_PORT=${NETMANAGER_PORT:-8080}
+      - NETMANAGER_DATA_DIR=/data
+    volumes:
+      - ${HOST_DATA_DIR:-./data}:/data

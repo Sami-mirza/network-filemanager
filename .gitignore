@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+ENV/
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Secrets & local config
+.env
+.env.local
+*.pem
+*.key
+credentials.json
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Runtime / local data
+data/*
+!data/.gitkeep
+
+# Tooling / reports
+.coverage
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+FORK_REPORT.md
+SANITIZATION_REPORT.md

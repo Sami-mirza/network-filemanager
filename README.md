@@ -52,9 +52,19 @@ You need **Python 3.9 or newer** and Git. No Docker is needed.
    ./setup.sh
    ```
 
-The setup script creates a private `.venv`, installs the packages listed in [`requirements.txt`](requirements.txt), creates your local settings, and starts the app. On Windows, the batch file does the same. The `requirements.txt` file is included in the repository; you do not need to create it yourself. Before starting, the terminal asks which existing folder on the host computer to share. Enter its path, or press Enter to use the current folder. Your choice is saved for the next launch.
+The setup script creates a private `.venv`, installs the packages listed in [`requirements.txt`](requirements.txt), creates your local settings, and starts the app. On Windows, the batch file does the same. The `requirements.txt` file is included in the repository; you do not need to create it yourself.
 
-When the startup message appears, open **http://localhost:8080** in your browser. Keep the terminal window open while you use the app; press **Ctrl+C** there to stop it.
+On the **host computer**, the terminal then asks which existing folder to share. Enter the full path to the folder and press Enter. For example:
+
+```text
+Choose the folder to share on your network.
+Folder to share [/path/to/network-filemanager/data]: /home/alex/Documents
+Saved shared folder: /home/alex/Documents
+```
+
+Press Enter on an empty prompt to keep the displayed folder. This question appears in the terminal running the setup script, not in the browser. The selected folder is remembered for future launches. When the server is ready, open **http://localhost:8080** on the host computer.
+
+Keep the terminal window open while you use the app; press **Ctrl+C** there to stop it.
 
 ## Use it again
 
@@ -67,13 +77,14 @@ The setup scripts reuse `.venv` and only install missing or changed requirements
 
 ## Files and settings
 
-- By default, the app shares the project's `data/` folder. To share another existing folder, enter its full path when the startup prompt asks which folder to share. The selected folder becomes the file manager's root, so its existing files and folders appear in the browser. The app remembers your choice in `.env`.
+- **What is shared:** the selected folder becomes the file manager's root. Its existing files and subfolders appear in the browser; you can browse folders, upload and download files, create folders and files, rename, delete, preview, and edit supported files. Changes happen to the actual contents of the selected folder.
+- **Changing the shared folder:** stop the server with Ctrl+C and run the setup script again. Enter a different existing folder when prompted. Press Enter to continue using the saved folder.
 - You can also set `NETMANAGER_DATA_DIR` in `.env` to the folder's full path. Examples:
   - Linux: `NETMANAGER_DATA_DIR=/home/alex/Documents`
   - macOS: `NETMANAGER_DATA_DIR=/Users/alex/Documents`
   - Windows: `NETMANAGER_DATA_DIR=C:/Users/Alex/Documents`
-- The app needs read and write access to the selected folder. Uploads and other file operations use that folder.
-- If you leave the default, uploaded files are stored in the project's `data/` folder. Keep this folder to keep those files.
+- The app needs read and write access to the selected folder. If it cannot access a folder, choose another folder or update its permissions.
+- If you keep the default, the project `data/` folder is shared.
 - The setup script creates a `.env` file with a private session key. Do not share or commit `.env`.
 - To set a login password, stop the app, open `.env`, set `NETMANAGER_PASSWORD` to a password of your choice, save, and start the app again. Leave it empty to disable the login screen.
 - By default, the app listens on port `8080`. Set `NETMANAGER_PORT` in `.env` to use another port.

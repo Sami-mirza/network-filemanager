@@ -52,7 +52,7 @@ You need **Python 3.9 or newer** and Git. No Docker is needed.
    ./setup.sh
    ```
 
-The setup script creates a private `.venv`, installs the packages listed in [`requirements.txt`](requirements.txt), creates your local settings, and starts the app. On Windows, the batch file does the same. The `requirements.txt` file is included in the repository; you do not need to create it yourself.
+The setup script creates a private `.venv`, installs the packages listed in [`requirements.txt`](requirements.txt), creates your local settings, and starts the app. On Windows, the batch file does the same. The `requirements.txt` file is included in the repository; you do not need to create it yourself. Before starting, the terminal asks which existing folder on the host computer to share. Enter its path, or press Enter to use the current folder. Your choice is saved for the next launch.
 
 When the startup message appears, open **http://localhost:8080** in your browser. Keep the terminal window open while you use the app; press **Ctrl+C** there to stop it.
 
@@ -67,12 +67,12 @@ The setup scripts reuse `.venv` and only install missing or changed requirements
 
 ## Files and settings
 
-- The app shows and shares the directory set by `NETMANAGER_DATA_DIR`. By default this is the project's `data/` folder, so folders elsewhere on your computer will not appear automatically.
-- To share an existing directory, stop the app and edit `.env`. Set `NETMANAGER_DATA_DIR` to that directory's full path, then run the setup script again. Examples:
+- By default, the app shares the project's `data/` folder. To share another existing folder, enter its full path when the startup prompt asks which folder to share. The selected folder becomes the file manager's root, so its existing files and folders appear in the browser. The app remembers your choice in `.env`.
+- You can also set `NETMANAGER_DATA_DIR` in `.env` to the folder's full path. Examples:
   - Linux: `NETMANAGER_DATA_DIR=/home/alex/Documents`
   - macOS: `NETMANAGER_DATA_DIR=/Users/alex/Documents`
   - Windows: `NETMANAGER_DATA_DIR=C:/Users/Alex/Documents`
-- The selected directory becomes the file manager's root. Its existing files and folders will appear when you refresh the page, and uploads go into the current folder. Make sure the account running the app has permission to access it.
+- The app needs read and write access to the selected folder. Uploads and other file operations use that folder.
 - If you leave the default, uploaded files are stored in the project's `data/` folder. Keep this folder to keep those files.
 - The setup script creates a `.env` file with a private session key. Do not share or commit `.env`.
 - To set a login password, stop the app, open `.env`, set `NETMANAGER_PASSWORD` to a password of your choice, save, and start the app again. Leave it empty to disable the login screen.

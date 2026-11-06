@@ -724,7 +724,14 @@ def choose_shared_directory():
         if not selected:
             return
 
-        selected = os.path.realpath(os.path.abspath(os.path.expanduser(selected.strip('"'))))
+        selected = selected.strip('"')
+        if selected.lower().startswith('mtp:'):
+            print("An MTP address is not a filesystem folder path.")
+            print("Open the device in your operating system and mount it as a folder first,")
+            print("then enter the mounted folder path shown by your system.")
+            continue
+
+        selected = os.path.realpath(os.path.abspath(os.path.expanduser(selected)))
         if not os.path.isdir(selected):
             print("That folder does not exist. Enter the path to an existing folder.")
             continue

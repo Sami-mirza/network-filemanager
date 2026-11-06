@@ -26,6 +26,9 @@ from flask import (Flask, abort, flash, redirect, render_template_string,
                    request, send_file, send_from_directory, session, url_for)
 from werkzeug.utils import secure_filename
 
+APP_DIR = os.path.dirname(os.path.realpath(__file__))
+
+
 def load_dotenv(dotenv_path='.env'):
     """Load key-value pairs from .env into os.environ if not already set."""
     if not os.path.isfile(dotenv_path):
@@ -45,15 +48,16 @@ def load_dotenv(dotenv_path='.env'):
         pass
 
 
-load_dotenv()
+load_dotenv(os.path.join(APP_DIR, '.env'))
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY') or os.urandom(24)
 
-# Serves filesystem under BASE_DIR. Timestamps: '%Y-%m-%d %H:%M'. Session: csrf, authenticated.
-BASE_DIR = os.path.realpath(
-    os.environ.get('NETMANAGER_DATA_DIR') or os.environ.get('DATA_DIR') or os.path.join(os.getcwd(), 'data')
-)
+# Serves filesystem under BASE_DIR. Relative data paths are based on the project directory.
+DATA_DIR = os.environ.get('NETMANAGER_DATA_DIR') or os.environ.get('DATA_DIR') or 'data'
+if not os.path.isabs(DATA_DIR):
+    DATA_DIR = os.path.join(APP_DIR, DATA_DIR)
+BASE_DIR = os.path.realpath(DATA_DIR)
 os.makedirs(BASE_DIR, exist_ok=True)
 PASSWORD = os.environ.get('NETMANAGER_PASSWORD') or os.environ.get('PASSWORD') or None
 MAX_EDIT_SIZE = 2 * 1024 * 1024  # 2 MB

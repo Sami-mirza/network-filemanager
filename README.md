@@ -67,7 +67,13 @@ The setup scripts reuse `.venv` and only install missing or changed requirements
 
 ## Files and settings
 
-- Uploaded files are stored in the project's `data/` folder. Keep this folder to keep your files.
+- The app shows and shares the directory set by `NETMANAGER_DATA_DIR`. By default this is the project's `data/` folder, so folders elsewhere on your computer will not appear automatically.
+- To share an existing directory, stop the app and edit `.env`. Set `NETMANAGER_DATA_DIR` to that directory's full path, then run the setup script again. Examples:
+  - Linux: `NETMANAGER_DATA_DIR=/home/alex/Documents`
+  - macOS: `NETMANAGER_DATA_DIR=/Users/alex/Documents`
+  - Windows: `NETMANAGER_DATA_DIR=C:/Users/Alex/Documents`
+- The selected directory becomes the file manager's root. Its existing files and folders will appear when you refresh the page, and uploads go into the current folder. Make sure the account running the app has permission to access it.
+- If you leave the default, uploaded files are stored in the project's `data/` folder. Keep this folder to keep those files.
 - The setup script creates a `.env` file with a private session key. Do not share or commit `.env`.
 - To set a login password, stop the app, open `.env`, set `NETMANAGER_PASSWORD` to a password of your choice, save, and start the app again. Leave it empty to disable the login screen.
 - By default, the app listens on port `8080`. Set `NETMANAGER_PORT` in `.env` to use another port.

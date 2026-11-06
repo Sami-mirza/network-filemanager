@@ -2,6 +2,10 @@
 
 A small, self-hosted web app for browsing, uploading, previewing, editing, and organizing files on your computer or local network.
 
+[![Windows](https://img.shields.io/badge/Windows-supported-0078D6?logo=windows&logoColor=white)](https://www.microsoft.com/windows)
+[![macOS](https://img.shields.io/badge/macOS-supported-000000?logo=apple&logoColor=white)](https://www.apple.com/macos/)
+[![Linux](https://img.shields.io/badge/Linux-supported-FCC624?logo=linux&logoColor=black)](https://www.kernel.org/)
+
 ## Quick start
 
 You need **Python 3.9 or newer** and Git. No Docker is needed.
@@ -48,7 +52,7 @@ You need **Python 3.9 or newer** and Git. No Docker is needed.
    ./setup.sh
    ```
 
-The setup script creates a private `.venv`, installs the packages from `requirements.txt`, creates your local settings, and starts the app. On Windows, the batch file does the same.
+The setup script creates a private `.venv`, installs the packages listed in [`requirements.txt`](requirements.txt), creates your local settings, and starts the app. On Windows, the batch file does the same. The `requirements.txt` file is included in the repository; you do not need to create it yourself.
 
 When the startup message appears, open **http://localhost:8080** in your browser. Keep the terminal window open while you use the app; press **Ctrl+C** there to stop it.
 

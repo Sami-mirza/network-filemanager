@@ -90,7 +90,7 @@ The setup scripts reuse `.venv` and only install missing or changed requirements
   - Windows: `E:\` or `D:\Photos`
   - macOS: `/Volumes/Backup` or `/Volumes/Phone`
   - Linux: `/media/alex/Backup` or `/run/user/1000/gvfs/...`
-- An address such as `mtp:/Redmi Note 9/Internal shared storage/Download/` is an MTP device address, not a filesystem path. The app cannot browse that address directly. On Linux, open the phone in the file manager and use its mounted GVFS path if one is exposed. On Windows or macOS, use a tool that mounts the phone storage as a filesystem volume, or copy the files to a mounted drive first. Then enter the path shown by the operating system.
+- On Linux, you can enter an address such as `mtp:/Redmi Note 9/Internal shared storage/Download/` after opening the unlocked phone in your file manager. The app looks for the matching folder in the active GVFS mount under `/run/user/<user-id>/gvfs` and selects it when exactly one match is found. If it cannot find a match, choose **File Transfer** on the phone, open it in your file manager, and check the mount with `ls "/run/user/$(id -u)/gvfs"`; then enter the full mounted path. On Windows or macOS, enter a normal filesystem path exposed by the OS or a mounting tool.
 - Keep the external device connected and mounted while the server is running. If it disconnects, stop the server, reconnect and mount it, then start the server again.
 - **Changing the shared folder:** stop the server with Ctrl+C and run the setup script again. Enter a different existing folder when prompted. Press Enter to continue using the saved folder.
 - You can also set `NETMANAGER_DATA_DIR` in `.env` to the folder's full path. Examples:

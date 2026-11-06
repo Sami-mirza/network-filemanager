@@ -749,11 +749,35 @@ def discover_shared_directories(platform_name=None, home=None, mount_roots=None)
     home = os.path.realpath(home or os.path.expanduser('~'))
     candidates = []
 
-    def add(label, path):
-        if os.path.isdir(path) and os.access(path, os.R_OK | os.W_OK | os.X_OK):
+    def add(label, path, allow_read_only=False):
+        if os.path.isdir(path) and os.access(path, os.R_OK | os.X_OK):
             real_path = os.path.realpath(path)
             if all(existing_path != real_path for _, existing_path in candidates):
-                candidates.append((label, real_path))
+                writable = os.access(real_path, os.W_OK)
+                if writable or allow_read_only:
+                    suffix = '' if writable else ' (read-only)'
+                    candidates.append((f'{label}{suffix}', real_path))
+
+    def add_device_folders(label, root):
+        add(label, root, allow_read_only=True)
+        try:
+            with os.scandir(root) as first_level:
+                children = [entry for entry in first_level if entry.is_dir()]
+        except OSError:
+            return
+
+        for child in children:
+            child_label = f'{label} / {child.name}'
+            add(child_label, child.path, allow_read_only=True)
+            if child.name.lower() not in ('internal shared storage', 'shared', 'storage'):
+                continue
+            try:
+                with os.scandir(child.path) as second_level:
+                    for folder in second_level:
+                        if folder.is_dir():
+                            add(f'{child_label} / {folder.name}', folder.path, allow_read_only=True)
+            except OSError:
+                continue
 
     add('Home folder', home)
     for folder_name, label in (
@@ -799,7 +823,7 @@ def discover_shared_directories(platform_name=None, home=None, mount_roots=None)
                 label = f'Connected device: {name}'
             else:
                 label = f'Mounted drive: {name}'
-            add(label, path)
+            add_device_folders(label, path)
 
     return candidates
 
@@ -849,11 +873,11 @@ def choose_shared_directory():
 
     print("\nChoose the folder to share on your network.")
     candidates = discover_shared_directories()
-    print("Available folders and connected drives:")
+    print("Folders and connected storage:")
     for index, (label, path) in enumerate(candidates, 1):
         print(f"  {index}. {label} — {path}")
     print("  M. Enter a folder path manually")
-    print("Press Enter to keep the current folder.")
+    print("Choose a number, enter M for a path, or press Enter to keep the current folder.")
     while True:
         try:
             selected = input(f"Folder choice [{BASE_DIR}]: ").strip()
@@ -911,10 +935,10 @@ def choose_shared_directory():
 
         selected = os.path.realpath(os.path.abspath(os.path.expanduser(selected)))
         if not os.path.isdir(selected):
-            print("That folder does not exist. Enter the path to an existing folder.")
+            print("That folder does not exist. Choose a listed number or enter the full path with M.")
             continue
         if not os.access(selected, os.R_OK | os.W_OK | os.X_OK):
-            print("The app needs read and write access to that folder. Choose another folder or update its permissions.")
+            print("This folder is read-only or inaccessible. Choose a writable folder; CD-ROMs cannot be used for uploads.")
             continue
 
         save_shared_directory(selected)

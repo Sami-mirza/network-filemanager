@@ -58,16 +58,19 @@ On the **host computer**, the terminal lists personal folders and connected driv
 
 ```text
 Choose the folder to share on your network.
-Available folders and connected drives:
+Folders and connected storage:
   1. Home folder — /home/alex
   2. Documents — /home/alex/Documents
   3. Connected device: mtp:host=... — /run/user/1000/gvfs/mtp:host=...
+  4. Connected device: mtp:host=... / Internal shared storage / Download — /run/user/1000/gvfs/mtp:host=.../Internal shared storage/Download
+  5. Mounted drive: Backup — /media/alex/Backup
   M. Enter a folder path manually
-Folder choice [/home/alex/data]: 2
-Saved shared folder: /home/alex/Documents
+Choose a number, enter M for a path, or press Enter to keep the current folder.
+Folder choice [/home/alex/data]: 4
+Saved shared folder: /run/user/1000/gvfs/mtp:host=.../Internal shared storage/Download
 ```
 
-This question appears in the terminal running the setup script, not in the browser. Press Enter to keep the currently selected folder. The selected folder is remembered for future launches. If your drive or phone is not listed, connect and unlock it, open it in your operating system's file manager so it is mounted, then restart the app. You can also choose `M` to enter a folder path. When the server is ready, open **http://localhost:8080** on the host computer.
+This question appears in the terminal running the setup script, not in the browser. Phone storage folders are listed under the connected device when the host OS exposes them. Choose the numbered folder, not its descriptive label or path. Paths marked `(read-only)` are shown for clarity but cannot be selected because uploads and file changes require write access. Press Enter to keep the currently selected folder. The selection is remembered for future launches. If a device is not listed, connect and unlock it, choose file-transfer mode, open it in the operating system's file manager, and restart the app. `M` lets you enter a real mounted filesystem path manually.
 
 Keep the terminal window open while you use the app; press **Ctrl+C** there to stop it.
 
@@ -90,12 +93,12 @@ The setup scripts reuse `.venv` and only install missing or changed requirements
 ## Files and settings
 
 - **What is shared:** the selected folder becomes the file manager's root. Its existing files and subfolders appear in the browser. The host can upload and download files, create folders and files, rename, delete, preview, and edit supported files. Other network devices can browse, download, preview, and stream videos, but cannot change the shared files. Changes happen to the actual contents of the selected folder.
-- **External drives and phones:** connect and unlock the device, choose its file-transfer mode if prompted, then open it in the operating system's file manager. The startup menu lists mounted external volumes and, on Linux, mounted GVFS/MTP devices that are readable and writable. Read-only media (such as a CD-ROM) is not listed because uploads and file operations require write access. Select the numbered device or a folder inside it. The app can only use devices that the host OS makes available through a filesystem path.
+- **External drives and phones:** connect and unlock the device, choose its file-transfer mode if prompted, then open it in the operating system's file manager. The startup menu lists mounted external volumes and, on Linux, mounted GVFS/MTP devices. It also lists folders inside connected devices so you can select `Download`, `Documents`, or another folder directly. Read-only folders are marked and cannot be selected for sharing because uploads and file operations require write access. The app can only use devices that the host OS makes available through a filesystem path.
 - Examples of mounted paths:
   - Windows: `E:\` or `D:\Photos`
   - macOS: `/Volumes/Backup` or `/Volumes/Phone`
   - Linux: `/media/alex/Backup` or `/run/user/1000/gvfs/...`
-- On Linux, an unlocked phone opened in the file manager appears in the startup menu as a connected GVFS device. Select it to share its storage, or choose a folder inside it. If it does not appear, choose **File Transfer** on the phone and open the device in the file manager before restarting the app. On Windows or macOS, mounted drives and volumes appear in the menu; if a device is not listed, use `M` to enter the normal filesystem path exposed by the OS or a mounting tool.
+- On Linux, an unlocked phone opened in the file manager appears in the startup menu as a connected GVFS device, with its storage folders underneath it. Select the number beside the folder you want. If it does not appear, choose **File Transfer** on the phone and open the device in the file manager before restarting the app. On Windows or macOS, mounted drives and volumes appear in the menu; if a device is not listed, use `M` to enter the normal filesystem path exposed by the OS or a mounting tool.
 - Keep the external device connected and mounted while the server is running. If it disconnects, stop the server, reconnect and mount it, then start the server again.
 - **Changing the shared folder:** stop the server with Ctrl+C and run the setup script again. Choose another numbered folder or drive. Press Enter to continue using the saved folder.
 - You can also set `NETMANAGER_DATA_DIR` in `.env` to the folder's full path. Examples:

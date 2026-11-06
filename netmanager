@@ -8,7 +8,7 @@ Usage:
 
 Needs: pip install -r requirements.txt
 
-Callers: Dockerfile CMD, docker-compose, setup.sh (CLI entrypoint; not imported as a module).
+Run this script directly or use the included setup scripts.
 """
 import codecs
 import hmac

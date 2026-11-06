@@ -750,7 +750,7 @@ def discover_shared_directories(platform_name=None, home=None, mount_roots=None)
     candidates = []
 
     def add(label, path):
-        if os.path.isdir(path):
+        if os.path.isdir(path) and os.access(path, os.R_OK | os.W_OK | os.X_OK):
             real_path = os.path.realpath(path)
             if all(existing_path != real_path for _, existing_path in candidates):
                 candidates.append((label, real_path))
@@ -872,8 +872,13 @@ def choose_shared_directory():
                 continue
             return
 
-        if selected.isdigit() and 1 <= int(selected) <= len(candidates):
-            selected = candidates[int(selected) - 1][1]
+        if selected.isdigit():
+            choice = int(selected)
+            if 1 <= choice <= len(candidates):
+                selected = candidates[choice - 1][1]
+            else:
+                print(f"Choose a number from 1 to {len(candidates)}, M, or press Enter.")
+                continue
         elif selected.lower() == 'm':
             try:
                 selected = input("Enter the full folder path: ").strip()
@@ -881,6 +886,9 @@ def choose_shared_directory():
                 print(f"\nUsing configured folder: {BASE_DIR}")
                 return
             if not selected:
+                continue
+            if selected.isdigit():
+                print("M expects a folder path, not a menu number. Enter a full path such as /media/sam/USB.")
                 continue
 
         selected = selected.strip('"')

@@ -90,7 +90,7 @@ The setup scripts reuse `.venv` and only install missing or changed requirements
 ## Files and settings
 
 - **What is shared:** the selected folder becomes the file manager's root. Its existing files and subfolders appear in the browser. The host can upload and download files, create folders and files, rename, delete, preview, and edit supported files. Other network devices can browse, download, preview, and stream videos, but cannot change the shared files. Changes happen to the actual contents of the selected folder.
-- **External drives and phones:** connect and unlock the device, choose its file-transfer mode if prompted, then open it in the operating system's file manager. The startup menu automatically lists mounted external volumes and, on Linux, mounted GVFS/MTP devices. Select the numbered device or a folder inside it. The app can only use devices that the host OS makes available through a filesystem path.
+- **External drives and phones:** connect and unlock the device, choose its file-transfer mode if prompted, then open it in the operating system's file manager. The startup menu lists mounted external volumes and, on Linux, mounted GVFS/MTP devices that are readable and writable. Read-only media (such as a CD-ROM) is not listed because uploads and file operations require write access. Select the numbered device or a folder inside it. The app can only use devices that the host OS makes available through a filesystem path.
 - Examples of mounted paths:
   - Windows: `E:\` or `D:\Photos`
   - macOS: `/Volumes/Backup` or `/Volumes/Phone`

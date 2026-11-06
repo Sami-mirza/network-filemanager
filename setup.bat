@@ -1,5 +1,6 @@
 @echo off
 setlocal enabledelayedexpansion
+cd /d "%~dp0"
 
 echo ========================================
 echo     Network File Manager Setup (Windows)
@@ -9,7 +10,7 @@ REM 1. Check Python
 where python >nul 2>nul
 if %errorlevel% neq 0 (
     echo [-] Error: Python was not found in your PATH.
-    echo     Please install Python 3.10+ from:
+    echo     Please install Python 3.9+ from:
     echo     https://www.python.org/downloads/
     echo     (Ensure "Add Python to PATH" is checked during installation)
     echo     Or install via Winget:
@@ -19,12 +20,18 @@ if %errorlevel% neq 0 (
 )
 
 for /f "tokens=*" %%i in ('python -V') do echo [+] Found %%i
+python -c "import sys; sys.exit(0 if sys.version_info >= (3, 9) else 1)"
+if errorlevel 1 (
+    echo [-] Error: Python 3.9 or newer is required.
+    pause
+    exit /b 1
+)
 
 REM 2. Create virtual environment
 if not exist ".venv" (
     echo [*] Creating virtual environment (.venv)...
     python -m venv .venv
-    if %errorlevel% neq 0 (
+    if errorlevel 1 (
         echo [-] Error creating virtual environment.
         pause
         exit /b 1
@@ -36,10 +43,10 @@ call .venv\Scripts\activate.bat
 
 REM 4. Install dependencies
 echo [*] Installing dependencies from requirements.txt...
-python -m pip install --upgrade pip --quiet
-pip install -r requirements.txt --quiet
-if %errorlevel% neq 0 (
+python -m pip install -r requirements.txt
+if errorlevel 1 (
     echo [-] Error installing dependencies.
+    echo     Check your internet connection and try again.
     pause
     exit /b 1
 )
@@ -49,7 +56,17 @@ REM 5. Initialize .env
 if not exist ".env" (
     echo [*] Creating .env from .env.example...
     copy .env.example .env >nul
-    python -c "import secrets, re; s=secrets.token_hex(24); f=open('.env','r'); c=f.read(); f.close(); open('.env','w').write(c.replace('change-me-to-a-long-random-string', s))"
+    if errorlevel 1 (
+        echo [-] Error copying .env.example. Make sure the file exists.
+        pause
+        exit /b 1
+    )
+    python -c "import secrets; s=secrets.token_hex(32); f=open('.env','r'); c=f.read(); f.close(); open('.env','w').write(c.replace('change-me-to-a-long-random-string', s))"
+    if errorlevel 1 (
+        echo [-] Error generating SECRET_KEY in .env.
+        pause
+        exit /b 1
+    )
     echo [+] Generated new random SECRET_KEY in .env
 )
 

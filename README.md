@@ -5,9 +5,8 @@
 **A modern, lightweight, self-hosted web-based file manager.**  
 *Browse, upload, preview, edit, and share files across your network with zero database setup.*
 
-[![Docker](https://img.shields.io/badge/Docker-Zero--Install%20Recommended-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
-[![Docker Compose](https://img.shields.io/badge/Docker_Compose-One--Command-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://docs.docker.com/compose/)
-[![Python](https://img.shields.io/badge/Python-3.8%2B%20(Bundled)-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+[![Python](https://img.shields.io/badge/Python-3.9%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+[![Docker](https://img.shields.io/badge/Docker-Optional-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 
 [![Platform Linux](https://img.shields.io/badge/Linux-FCC624?style=flat-square&logo=linux&logoColor=black)](https://www.kernel.org/)
@@ -17,20 +16,21 @@
 </div>
 
 > [!TIP]
-> ### 🚀 Zero Host Dependencies Required!
-> **You do NOT need to install Python, Flask, pip, or virtual environments on your computer!**  
-> Everything (Python 3.12, Flask, Waitress, and all packages) is pre-packaged inside a container. If you have Docker, you can run the entire server with a single command:
+> ### 🚀 No Docker Required
+> Install Python 3.9 or newer, then run the included setup script for your operating system. It creates a virtual environment and installs the packages from `requirements.txt`:
 > ```bash
-> docker compose up -d
+> ./setup.sh
 > ```
-> *On Windows, you can simply double-click `docker-start.bat`!*  
-> *On Linux / macOS, simply run `./docker-start.sh`!*
+> On Windows, run `setup.bat`. Docker is also available as an optional way to run the app.
 
 ---
 
 ## 📑 Table of Contents
 
-- [The Fast Way: Docker Setup (Recommended)](#-the-fast-way-docker-setup-recommended)
+- [Quick Start (No Docker)](#-quick-start-no-docker)
+  - [Windows](#windows)
+  - [Linux and macOS](#linux-and-macos)
+- [Optional: Run with Docker](#-optional-run-with-docker)
   - [Docker Downloads for All OS](#docker-downloads-for-all-os)
   - [Windows Setup with Docker](#1-windows-setup-with-docker)
   - [Linux Setup with Docker](#2-linux-setup-with-docker)
@@ -39,7 +39,7 @@
 - [Key Features](#-key-features)
 - [Accessing Files & Connecting Phones (LAN)](#-accessing-files--connecting-phones-lan)
 - [Configuration & Password Protection](#-configuration--password-protection)
-- [Alternative: Running Directly with Python (Without Docker)](#-alternative-running-directly-with-python-without-docker)
+- [Python Setup Details](#-python-setup-details)
   - [Windows (Python)](#windows-manual-python-setup)
   - [Linux (Python)](#linux-manual-python-setup)
   - [macOS (Python)](#macos-manual-python-setup)
@@ -49,13 +49,30 @@
 
 ---
 
-## 🐳 The Fast Way: Docker Setup (Recommended)
+## 🚀 Quick Start (No Docker)
 
-Running with Docker is the cleanest, easiest method. Your host operating system stays completely untouched:
-- ❌ No need to install Python.
-- ❌ No need to install `pip` or Python packages (`flask`, `waitress`, etc.).
-- ❌ No virtual environment conflicts or path issues.
-- ✅ Everything runs in a lightweight, secure container and saves files directly to your host's [`./data`](file:///home/sam/Projects/Server/data) folder.
+You need Python 3.9 or newer. You do **not** need Docker; the setup scripts create an isolated `.venv`, install the dependencies listed in [`requirements.txt`](requirements.txt), initialize local settings, and start the app. Uploaded files are stored in the `data/` folder.
+
+### Windows
+
+1. Install Python 3.9 or newer from [python.org](https://www.python.org/downloads/windows/) and enable **Add Python to PATH**.
+2. Double-click `setup.bat`, or run `setup.bat` from Command Prompt or PowerShell.
+3. Open [http://localhost:8080](http://localhost:8080).
+
+### Linux and macOS
+
+1. Install Python 3.9 or newer. On Debian/Ubuntu, also install `python3-venv` and `python3-pip`.
+2. From the project folder, run:
+   ```bash
+   ./setup.sh
+   ```
+3. Open [http://localhost:8080](http://localhost:8080).
+
+To install without immediately starting the server, run `./setup.sh --setup-only` (or `setup.bat --setup-only`). Start it later by running the same script without `--setup-only`. To start manually after installing requirements, use `.venv/bin/python netmanager` on Linux/macOS or `.venv\Scripts\python netmanager` on Windows.
+
+## 🐳 Optional: Run with Docker
+
+Docker is an alternative; it is not required for local setup.
 
 ---
 
@@ -136,7 +153,7 @@ docker compose up -d
 ### 4. Docker Compose & CLI Reference
 
 #### Where Are My Files Stored?
-All files uploaded to the file manager are saved directly in the [`./data`](file:///home/sam/Projects/Server/data) folder on your host computer. You can copy files directly in or out of this folder anytime!
+All files uploaded to the file manager are saved directly in the project's `data/` folder on your host computer. You can copy files directly in or out of this folder anytime!
 
 #### Using Docker CLI (without Compose):
 ```bash
@@ -202,35 +219,33 @@ Once the server is running, any device connected to the same Wi-Fi can access an
 
 ## ⚙️ Configuration & Password Protection
 
-Settings are configured in the [`.env`](file:///home/sam/Projects/Server/.env) file:
+Settings are configured in `.env`, which the setup scripts create automatically. For local Python runs, the main settings are:
 
 ```ini
 # Optional password (leave blank for open home network access)
 NETMANAGER_PASSWORD=MySecretPassword
 
-# Port to expose on your machine (default: 8080)
-HOST_PORT=8080
+# Port for the local server (default: 8080)
+NETMANAGER_PORT=8080
 
-# Directory on host where files are stored (default: ./data)
-HOST_DATA_DIR=./data
+# Folder served by the app (default: ./data)
+NETMANAGER_DATA_DIR=./data
 
-# Secret key for session security (auto-generated)
+# Secret key for session security (generated by setup scripts)
 SECRET_KEY=long-random-string
 ```
 
-After modifying `.env`, restart the container:
+Docker Compose also reads `HOST_PORT` (the host's published port) and `HOST_DATA_DIR` (the host folder mounted for file storage). After modifying Docker settings, restart the container:
 ```bash
 docker compose up -d
 ```
 
 ---
 
-## 🐍 Alternative: Running Directly with Python (Without Docker)
-
-If you prefer to run directly with Python on bare metal without Docker:
+## 🐍 Python Setup Details
 
 ### Prerequisites & Downloads
-- [Python 3.10+ Official Download](https://www.python.org/downloads/)
+- [Python 3.9+ Official Download](https://www.python.org/downloads/)
 - [Git Official Download](https://git-scm.com/downloads)
 
 ---

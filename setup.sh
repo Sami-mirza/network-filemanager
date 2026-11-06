@@ -11,11 +11,11 @@ echo "========================================"
 echo "    Network File Manager Setup"
 echo "========================================"
 
-# 1. Detect Python 3
+# 1. Detect supported Python
 PYTHON_BIN=""
 for cmd in python3 python; do
     if command -v "$cmd" >/dev/null 2>&1; then
-        if "$cmd" -c "import sys; exit(0 if sys.version_info >= (3, 8) else 1)" 2>/dev/null; then
+        if "$cmd" -c "import sys; exit(0 if sys.version_info >= (3, 9) else 1)" 2>/dev/null; then
             PYTHON_BIN="$cmd"
             break
         fi
@@ -23,7 +23,7 @@ for cmd in python3 python; do
 done
 
 if [ -z "$PYTHON_BIN" ]; then
-    echo "[-] Error: Python 3.8 or newer was not found."
+    echo "[-] Error: Python 3.9 or newer was not found."
     echo "    Please install Python 3:"
     echo "    - Debian/Ubuntu: sudo apt update && sudo apt install -y python3 python3-venv python3-pip"
     echo "    - Fedora/RHEL:   sudo dnf install -y python3 python3-pip"
@@ -40,14 +40,12 @@ mkdir -p data
 
 if [ ! -f .env ]; then
     echo "[*] Initializing .env configuration from .env.example..."
-    cp .env.example .env
-    # Generate random SECRET_KEY
-    RANDOM_SECRET=$("$PYTHON_BIN" -c "import secrets; print(secrets.token_hex(24))" 2>/dev/null || date +%s | sha256sum | head -c 48)
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-        sed -i '' "s/change-me-to-a-long-random-string/$RANDOM_SECRET/" .env
-    else
-        sed -i "s/change-me-to-a-long-random-string/$RANDOM_SECRET/" .env
+    if [ ! -f .env.example ]; then
+        echo "[-] Error: .env.example is missing."
+        exit 1
     fi
+    cp .env.example .env
+    "$PYTHON_BIN" -c 'from pathlib import Path; import secrets; p = Path(".env"); p.write_text(p.read_text().replace("change-me-to-a-long-random-string", secrets.token_hex(32)))'
     echo "[+] Created .env with generated SECRET_KEY."
 fi
 
@@ -55,49 +53,38 @@ fi
 VENV_DIR="$SCRIPT_DIR/.venv"
 if [ ! -d "$VENV_DIR" ]; then
     echo "[*] Creating virtual environment at $VENV_DIR..."
-    if ! "$PYTHON_BIN" -m venv --system-site-packages "$VENV_DIR" 2>/dev/null; then
-        echo "[-] Warning: Failed to create virtual environment with --system-site-packages, trying standard venv..."
-        if ! "$PYTHON_BIN" -m venv "$VENV_DIR" 2>/dev/null; then
-            echo "[-] Error: Failed to create virtual environment."
-            echo "    On Debian/Ubuntu systems, install the python3-venv package:"
-            echo "    sudo apt install -y python3-venv"
-            exit 1
-        fi
-    fi
-fi
-
-# 4. Activate virtual environment
-# shellcheck disable=SC1091
-source "$VENV_DIR/bin/activate"
-
-# 5. Install dependencies
-echo "[*] Checking and installing requirements..."
-if ! pip install --upgrade pip --quiet 2>/dev/null; then
-    echo "[-] Note: Could not upgrade pip (possibly offline or sandboxed). Continuing..."
-fi
-
-if ! pip install -r requirements.txt --quiet; then
-    echo "[-] Warning: pip install failed. Checking if Flask is already available..."
-    if python -c "import flask" 2>/dev/null; then
-        echo "[+] Flask is available in environment. Continuing..."
-    else
-        echo "[-] Error: Required dependencies could not be installed and are not in environment."
-        echo "    Please verify internet connection and run: pip install -r requirements.txt"
+    if ! "$PYTHON_BIN" -m venv "$VENV_DIR"; then
+        echo "[-] Error: Failed to create virtual environment."
+        echo "    On Debian/Ubuntu systems, install the python3-venv package:"
+        echo "    sudo apt install -y python3-venv"
         exit 1
     fi
-else
-    echo "[+] Dependencies are up to date."
 fi
 
-# 7. Check if user passed --setup-only
-if [ "$1" = "--setup-only" ]; then
+VENV_PYTHON="$VENV_DIR/bin/python"
+if [ ! -x "$VENV_PYTHON" ]; then
+    echo "[-] Error: The virtual environment is incomplete: $VENV_DIR"
+    echo "    Remove that directory and run this setup script again."
+    exit 1
+fi
+
+# 4. Install dependencies in the isolated virtual environment
+echo "[*] Checking and installing requirements..."
+if ! "$VENV_PYTHON" -m pip install -r requirements.txt; then
+    echo "[-] Error: Could not install required dependencies."
+    echo "    Check your internet connection, then run: $VENV_PYTHON -m pip install -r requirements.txt"
+    exit 1
+fi
+echo "[+] Dependencies are up to date."
+
+# 5. Check if user passed --setup-only
+if [ "${1:-}" = "--setup-only" ]; then
     echo "[+] Setup complete! To start the server run: ./setup.sh"
     exit 0
 fi
 
-# 8. Start netmanager
-chmod +x netmanager
+# 6. Start netmanager
 echo "========================================"
 echo "[+] Starting Network File Manager..."
 echo "========================================"
-exec python "$SCRIPT_DIR/netmanager" "$@"
+exec "$VENV_PYTHON" "$SCRIPT_DIR/netmanager" "$@"

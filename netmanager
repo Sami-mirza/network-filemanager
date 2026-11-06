@@ -100,6 +100,33 @@ def get_local_hostname():
     return hostname
 
 
+def print_startup_banner(directory, password_enabled, port, ip, hostname, friendly_available):
+    print()
+    print("=" * 64)
+    print("  NETWORK FILE MANAGER")
+    print("=" * 64)
+    print(f"  Shared folder : {directory}")
+    print(f"  Login         : {'Password protected' if password_enabled else 'No password set'}")
+    print("-" * 64)
+    print("  OPEN ON THIS COMPUTER")
+    print(f"  http://localhost:{port}")
+    print()
+    print("  SHARE WITH DEVICES ON THE SAME WI-FI (recommended)")
+    print(f"  http://{ip}:{port}")
+    if friendly_available:
+        print()
+        print("  FRIENDLY ADDRESS (requires mDNS support)")
+        print(f"  http://{hostname}:{port}")
+        print("  If this name cannot be reached, share the Wi-Fi address above.")
+    else:
+        print()
+        print("  Friendly .local address is unavailable; share the Wi-Fi address above.")
+    print("-" * 64)
+    print("  Keep this window open while sharing. Press Ctrl+C to stop.")
+    print("=" * 64)
+    print()
+
+
 def port_free(port):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         return s.connect_ex(('127.0.0.1', port)) != 0
@@ -980,29 +1007,22 @@ if __name__ == '__main__':
             zeroconf = Zeroconf(interfaces=[ip])
             service_info = ServiceInfo(
                 '_http._tcp.local.',
-                'Network File Manager._http._tcp.local.',
+                f'Network File Manager {PORT}._http._tcp.local.',
                 addresses=[ipaddress.ip_address(ip).packed],
                 port=PORT,
                 server=f'{hostname}.',
             )
-            zeroconf.register_service(service_info)
+            zeroconf.register_service(service_info, allow_name_change=True)
         except (NonUniqueNameException, OSError, ValueError) as exc:
             print(f"Could not advertise {hostname} on the local network: {exc}")
             if zeroconf:
                 zeroconf.close()
                 zeroconf = None
 
-    print("\nFile Manager running")
-    print(f"Directory: {BASE_DIR}")
-    print(f"Security: {'PASSWORD PROTECTED' if PASSWORD else 'NO PASSWORD (open to your local network)'}")
     try:
         from waitress import serve
 
-        print(f"Local: http://localhost:{PORT}")
-        print(f"Network: http://{hostname}:{PORT}")
-        if service_info is None:
-            print(f"mDNS is unavailable; try http://{ip}:{PORT}.")
-        print()
+        print_startup_banner(BASE_DIR, bool(PASSWORD), PORT, ip, hostname, service_info is not None)
         serve(app, host='0.0.0.0', port=PORT)
     finally:
         if zeroconf:

@@ -12,6 +12,7 @@ Run this script directly or use the included setup scripts.
 """
 import codecs
 import hmac
+import ipaddress
 import io
 import mimetypes
 import os
@@ -261,26 +262,28 @@ textarea { width:100%; height:62vh; font-family:ui-monospace,Menlo,Consolas,mono
       </div>
     </div>
 
-    <div class="card toolbar">
-      <form method="POST" action="{{ url_for('upload_file') }}" enctype="multipart/form-data">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <input type="hidden" name="path" value="{{ current_rel_path }}">
-        <input type="file" name="files" multiple required>
-        <button class="btn btn-primary" type="submit">Upload</button>
-      </form>
-      <form method="POST" action="{{ url_for('make_dir') }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <input type="hidden" name="path" value="{{ current_rel_path }}">
-        <input type="text" name="name" placeholder="Folder name" required>
-        <button class="btn" type="submit">New folder</button>
-      </form>
-      <form method="POST" action="{{ url_for('new_file') }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <input type="hidden" name="path" value="{{ current_rel_path }}">
-        <input type="text" name="name" placeholder="File name, e.g. notes.txt" required>
-        <button class="btn" type="submit">New file</button>
-      </form>
-    </div>
+    {% if host_access %}
+      <div class="card toolbar">
+        <form method="POST" action="{{ url_for('upload_file') }}" enctype="multipart/form-data">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <input type="hidden" name="path" value="{{ current_rel_path }}">
+          <input type="file" name="files" multiple required>
+          <button class="btn btn-primary" type="submit">Upload</button>
+        </form>
+        <form method="POST" action="{{ url_for('make_dir') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <input type="hidden" name="path" value="{{ current_rel_path }}">
+          <input type="text" name="name" placeholder="Folder name" required>
+          <button class="btn" type="submit">New folder</button>
+        </form>
+        <form method="POST" action="{{ url_for('new_file') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <input type="hidden" name="path" value="{{ current_rel_path }}">
+          <input type="text" name="name" placeholder="File name, e.g. notes.txt" required>
+          <button class="btn" type="submit">New file</button>
+        </form>
+      </div>
+    {% endif %}
 
     <div class="card">
       <div class="filter-row">
@@ -313,10 +316,12 @@ textarea { width:100%; height:62vh; font-family:ui-monospace,Menlo,Consolas,mono
                   <a class="btn btn-sm" href="{{ url_for('download_zip', path_url=item.rel_path) }}">ZIP</a>
                 {% else %}
                   <a class="btn btn-sm" href="{{ url_for('download_file', file_path_url=item.rel_path) }}">Download</a>
-                  {% if item.kind == 'text' %}<a class="btn btn-sm" href="{{ url_for('edit_file', file_path_url=item.rel_path) }}">Edit</a>{% endif %}
+                  {% if host_access and item.kind == 'text' %}<a class="btn btn-sm" href="{{ url_for('edit_file', file_path_url=item.rel_path) }}">Edit</a>{% endif %}
                 {% endif %}
-                <button class="btn btn-sm" data-path="{{ item.rel_path }}" data-name="{{ item.name }}" onclick="renameItem(this)">Rename</button>
-                <button class="btn btn-sm btn-danger" data-path="{{ item.rel_path }}" data-name="{{ item.name }}" onclick="deleteItem(this)">Delete</button>
+                {% if host_access %}
+                  <button class="btn btn-sm" data-path="{{ item.rel_path }}" data-name="{{ item.name }}" onclick="renameItem(this)">Rename</button>
+                  <button class="btn btn-sm btn-danger" data-path="{{ item.rel_path }}" data-name="{{ item.name }}" onclick="deleteItem(this)">Delete</button>
+                {% endif %}
               </div>
             </td>
           </tr>
@@ -326,16 +331,18 @@ textarea { width:100%; height:62vh; font-family:ui-monospace,Menlo,Consolas,mono
       </table>
     </div>
 
-    <form id="rename-form" method="POST" action="{{ url_for('rename_item') }}" style="display:none">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-      <input type="hidden" name="path" value="{{ current_rel_path }}">
-      <input type="hidden" name="target" id="rn-target"><input type="hidden" name="name" id="rn-name">
-    </form>
-    <form id="delete-form" method="POST" action="{{ url_for('delete_item') }}" style="display:none">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-      <input type="hidden" name="path" value="{{ current_rel_path }}">
-      <input type="hidden" name="target" id="del-target">
-    </form>
+    {% if host_access %}
+      <form id="rename-form" method="POST" action="{{ url_for('rename_item') }}" style="display:none">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="path" value="{{ current_rel_path }}">
+        <input type="hidden" name="target" id="rn-target"><input type="hidden" name="name" id="rn-name">
+      </form>
+      <form id="delete-form" method="POST" action="{{ url_for('delete_item') }}" style="display:none">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="path" value="{{ current_rel_path }}">
+        <input type="hidden" name="target" id="del-target">
+      </form>
+    {% endif %}
     <script>
       function filterList() {
         const q = document.getElementById('search').value.toLowerCase();
@@ -367,13 +374,13 @@ textarea { width:100%; height:62vh; font-family:ui-monospace,Menlo,Consolas,mono
       <div class="btn-row">
         <a class="btn" href="{{ url_for('browse_path', path_url=parent_path) }}">Back</a>
         <a class="btn btn-primary" href="{{ url_for('download_file', file_path_url=file_path_url) }}">Download</a>
-        {% if editable %}<a class="btn" href="{{ url_for('edit_file', file_path_url=file_path_url) }}">Edit as text</a>{% endif %}
+        {% if host_access and editable %}<a class="btn" href="{{ url_for('edit_file', file_path_url=file_path_url) }}">Edit as text</a>{% endif %}
       </div>
     </div>
     <div class="card preview">
       {% set src = url_for('raw_file', file_path_url=file_path_url) %}
       {% if kind == 'image' %}<img src="{{ src }}" alt="{{ filename }}">
-      {% elif kind == 'video' %}<video src="{{ src }}" controls></video>
+      {% elif kind == 'video' %}<video src="{{ src }}" controls preload="metadata" playsinline></video>
       {% elif kind == 'audio' %}<audio src="{{ src }}" controls></audio>
       {% elif kind == 'pdf' %}<iframe src="{{ src }}"></iframe>
       {% else %}
@@ -386,9 +393,9 @@ textarea { width:100%; height:62vh; font-family:ui-monospace,Menlo,Consolas,mono
       <h2 class="page-title">Editing: {{ filename }}</h2>
       <form method="POST" action="{{ url_for('save_file', file_path_url=file_path_url) }}" style="margin-top:12px">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <textarea name="content" spellcheck="false">{{ content }}</textarea>
+        <textarea name="content" spellcheck="false" {% if not host_access %}readonly{% endif %}>{{ content }}</textarea>
         <div class="btn-row">
-          <button class="btn btn-primary" type="submit">Save changes</button>
+          {% if host_access %}<button class="btn btn-primary" type="submit">Save changes</button>{% endif %}
           <a class="btn" href="{{ url_for('browse_path', path_url=parent_path) }}">Cancel</a>
         </div>
       </form>
@@ -402,12 +409,30 @@ textarea { width:100%; height:62vh; font-family:ui-monospace,Menlo,Consolas,mono
 
 def render(**kw):
     return render_template_string(HTML_TEMPLATE, csrf_token=session.get('csrf', ''),
-                                  password_on=bool(PASSWORD), **kw)
+                                  password_on=bool(PASSWORD), host_access=is_host_request(), **kw)
+
+
+HOST_ONLY_ENDPOINTS = {
+    'upload_file', 'make_dir', 'new_file', 'rename_item', 'delete_item',
+    'save_file', 'edit_file',
+}
+
+
+def is_host_request():
+    remote_addr = request.remote_addr
+    if not remote_addr:
+        return False
+    try:
+        return ipaddress.ip_address(remote_addr).is_loopback
+    except ValueError:
+        return False
 
 
 # ───────────────────────── security ─────────────────────────
 @app.before_request
 def security():
+    if request.endpoint in HOST_ONLY_ENDPOINTS and not is_host_request():
+        abort(403, 'File changes are only allowed from the host computer.')
     if 'csrf' not in session:
         session['csrf'] = secrets.token_hex(16)
     if PASSWORD and not session.get('authenticated') and request.endpoint not in ('login',):

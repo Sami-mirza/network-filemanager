@@ -66,6 +66,13 @@ Press Enter on an empty prompt to keep the displayed folder. This question appea
 
 Keep the terminal window open while you use the app; press **Ctrl+C** there to stop it.
 
+## Host and network access
+
+- On the host computer, open **http://localhost:8080**. Only this local page shows the upload, create, rename, delete, and edit controls.
+- Other devices on the same network can browse and download shared files and play supported videos, but they cannot change files. Change requests from network devices are also rejected by the server.
+- Use the host computer's local IP address on other devices, for example `http://192.168.1.25:8080`. The app serves video files with browser playback and seeking when the video format is supported by that browser.
+- File access is not limited to your Wi-Fi by itself. Use a strong `NETMANAGER_PASSWORD` in `.env` before making the server accessible to people or networks you do not fully trust.
+
 ## Use it again
 
 After the first setup, start the app from its project folder:
@@ -77,7 +84,7 @@ The setup scripts reuse `.venv` and only install missing or changed requirements
 
 ## Files and settings
 
-- **What is shared:** the selected folder becomes the file manager's root. Its existing files and subfolders appear in the browser; you can browse folders, upload and download files, create folders and files, rename, delete, preview, and edit supported files. Changes happen to the actual contents of the selected folder.
+- **What is shared:** the selected folder becomes the file manager's root. Its existing files and subfolders appear in the browser. The host can upload and download files, create folders and files, rename, delete, preview, and edit supported files. Other network devices can browse, download, preview, and stream videos, but cannot change the shared files. Changes happen to the actual contents of the selected folder.
 - **Changing the shared folder:** stop the server with Ctrl+C and run the setup script again. Enter a different existing folder when prompted. Press Enter to continue using the saved folder.
 - You can also set `NETMANAGER_DATA_DIR` in `.env` to the folder's full path. Examples:
   - Linux: `NETMANAGER_DATA_DIR=/home/alex/Documents`

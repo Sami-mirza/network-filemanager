@@ -14,7 +14,8 @@ WORKDIR /app
 
 RUN useradd --create-home --uid 10001 --shell /usr/sbin/nologin appuser \
     && mkdir -p /data \
-    && chown -R appuser:appuser /data
+    && chown -R appuser:appuser /data \
+    && chmod 777 /data
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt

@@ -16,7 +16,6 @@ build/
 # Secrets & local config
 .env
 .env.local
-.netmanager-certs/
 *.pem
 *.key
 credentials.json

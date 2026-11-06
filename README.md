@@ -76,10 +76,10 @@ Keep the terminal window open while you use the app; press **Ctrl+C** there to s
 
 ## Host and network access
 
-- On the host computer, open **https://localhost:8080**. Only this local page shows the upload, create, rename, delete, and edit controls.
+- On the host computer, open **http://localhost:8080**. Only this local page shows the upload, create, rename, delete, and edit controls.
 - Other devices on the same network can browse and download shared files and play supported videos, but they cannot change files. Change requests from network devices are also rejected by the server.
-- On other devices on the same network, open **https://netmanager.local:8080**. The app announces this `.local` address over mDNS; devices must support local-network/mDNS names. The app serves video files with browser playback and seeking when the video format is supported by that browser.
-- HTTPS uses a self-signed certificate generated on first launch and reused on later launches. Browsers may show a certificate warning because they do not automatically trust this certificate; only continue when you started the server yourself and the address is expected. To use a different local name, set `NETMANAGER_HOSTNAME` in `.env` (for example, `my-files.local`) and restart.
+- On other devices on the same network, open **http://netmanager.local:8080**. The app announces this `.local` address over mDNS; devices must support local-network/mDNS names. The app serves video files with browser playback and seeking when the video format is supported by that browser.
+- To use a different local name, set `NETMANAGER_HOSTNAME` in `.env` (for example, `my-files.local`) and restart.
 - File access is not limited to your Wi-Fi by itself. Use a strong `NETMANAGER_PASSWORD` in `.env` before making the server accessible to people or networks you do not fully trust.
 
 ## Use it again
@@ -111,7 +111,7 @@ The setup scripts reuse `.venv` and only install missing or changed requirements
 - The setup script creates a `.env` file with a private session key. Do not share or commit `.env`.
 - To set a login password, stop the app, open `.env`, set `NETMANAGER_PASSWORD` to a password of your choice, save, and start the app again. Leave it empty to disable the login screen.
 - By default, the app listens on port `8080`. Set `NETMANAGER_PORT` in `.env` to use another port.
-- To access the app from another device on your home network, use `https://netmanager.local:8080`. Only do this on a trusted network, and set a password first.
+- To access the app from another device on your home network, use `http://netmanager.local:8080`. Only do this on a trusted network, and set a password first.
 
 ## Troubleshooting
 
@@ -119,7 +119,7 @@ The setup scripts reuse `.venv` and only install missing or changed requirements
 - **`python3-venv` or `ensurepip` is missing (Linux):** install `python3-venv` and `python3-pip` using your distribution's package manager, then rerun setup.
 - **Dependencies fail to install:** check your internet connection and rerun the setup script.
 - **Port 8080 is already in use:** set `NETMANAGER_PORT=8081` (or another free port) in `.env`, then restart.
-- **The `.local` address does not load:** make sure both devices are on the same network and that the client supports mDNS/local-network names. The startup message shows the host's IP as a fallback; a browser may also warn that the certificate name does not match when using that IP.
+- **The `.local` address does not load:** make sure both devices are on the same network and that the client supports mDNS/local-network names. The startup message shows the host's IP as a fallback.
 - **The page does not load:** make sure the app is still running in the terminal and visit the port shown in its startup message.
 
 ## Manual setup

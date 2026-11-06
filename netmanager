@@ -743,6 +743,104 @@ def find_mtp_mounts(mtp_address, mount_roots=None):
     return sorted(matches)
 
 
+def discover_shared_directories(platform_name=None, home=None, mount_roots=None):
+    """Find common personal folders and currently mounted external storage."""
+    platform_name = platform_name or sys.platform
+    home = os.path.realpath(home or os.path.expanduser('~'))
+    candidates = []
+
+    def add(label, path):
+        if os.path.isdir(path):
+            real_path = os.path.realpath(path)
+            if all(existing_path != real_path for _, existing_path in candidates):
+                candidates.append((label, real_path))
+
+    add('Home folder', home)
+    for folder_name, label in (
+        ('Desktop', 'Desktop'),
+        ('Documents', 'Documents'),
+        ('Downloads', 'Downloads'),
+        ('Pictures', 'Pictures'),
+        ('Music', 'Music'),
+        ('Videos', 'Videos'),
+    ):
+        add(label, os.path.join(home, folder_name))
+
+    if mount_roots is None:
+        if platform_name == 'win32':
+            mount_roots = [f'{letter}:\\' for letter in 'DEFGHIJKLMNOPQRSTUVWXYZ']
+        elif platform_name == 'darwin':
+            mount_roots = ['/Volumes']
+        else:
+            uid = getattr(os, 'getuid', lambda: None)()
+            mount_roots = [os.path.join('/media', os.path.basename(home)), '/media', '/mnt']
+            if uid is not None:
+                mount_roots.append(f'/run/user/{uid}/gvfs')
+
+    for mount_root in mount_roots:
+        try:
+            if platform_name in ('win32', 'darwin'):
+                entries = [(os.path.basename(os.path.normpath(mount_root)), mount_root)]
+                if platform_name == 'darwin':
+                    with os.scandir(mount_root) as scanned:
+                        entries = [(entry.name, entry.path) for entry in scanned if entry.is_dir()]
+            else:
+                with os.scandir(mount_root) as scanned:
+                    entries = [(entry.name, entry.path) for entry in scanned if entry.is_dir()]
+        except OSError:
+            continue
+
+        for name, path in entries:
+            if platform_name == 'darwin':
+                label = f'External volume: {name}'
+            elif platform_name == 'win32':
+                label = f'Drive: {name}'
+            elif mount_root.endswith('/gvfs'):
+                label = f'Connected device: {name}'
+            else:
+                label = f'Mounted drive: {name}'
+            add(label, path)
+
+    return candidates
+
+
+def save_shared_directory(selected):
+    """Persist the selected shared folder in the project .env file."""
+    global BASE_DIR
+    env_path = os.path.join(APP_DIR, '.env')
+    try:
+        with open(env_path, 'r', encoding='utf-8') as env_file:
+            lines = env_file.readlines()
+    except FileNotFoundError:
+        lines = []
+    except OSError as error:
+        sys.exit(f"Could not read {env_path}: {error}")
+
+    setting = f"NETMANAGER_DATA_DIR={selected}\n"
+    found = False
+    updated_lines = []
+    for line in lines:
+        if re.match(r'^\s*NETMANAGER_DATA_DIR\s*=', line):
+            if not found:
+                updated_lines.append(setting)
+                found = True
+        else:
+            updated_lines.append(line)
+    if not found:
+        if updated_lines and not updated_lines[-1].endswith('\n'):
+            updated_lines[-1] += '\n'
+        updated_lines.append(setting)
+    try:
+        with open(env_path, 'w', encoding='utf-8') as env_file:
+            env_file.writelines(updated_lines)
+    except OSError as error:
+        sys.exit(f"Could not save the selected folder to {env_path}: {error}")
+
+    BASE_DIR = selected
+    os.environ['NETMANAGER_DATA_DIR'] = selected
+    print(f"Saved shared folder: {BASE_DIR}")
+
+
 def choose_shared_directory():
     """Prompt the local host to choose a readable and writable shared directory."""
     global BASE_DIR
@@ -750,10 +848,15 @@ def choose_shared_directory():
         return
 
     print("\nChoose the folder to share on your network.")
-    print("Enter an existing folder path, or press Enter to keep the current folder.")
+    candidates = discover_shared_directories()
+    print("Available folders and connected drives:")
+    for index, (label, path) in enumerate(candidates, 1):
+        print(f"  {index}. {label} — {path}")
+    print("  M. Enter a folder path manually")
+    print("Press Enter to keep the current folder.")
     while True:
         try:
-            selected = input(f"Folder to share [{BASE_DIR}]: ").strip()
+            selected = input(f"Folder choice [{BASE_DIR}]: ").strip()
         except EOFError:
             print(f"\nUsing configured folder: {BASE_DIR}")
             return
@@ -768,6 +871,17 @@ def choose_shared_directory():
                 print("Enter an available folder path to share.")
                 continue
             return
+
+        if selected.isdigit() and 1 <= int(selected) <= len(candidates):
+            selected = candidates[int(selected) - 1][1]
+        elif selected.lower() == 'm':
+            try:
+                selected = input("Enter the full folder path: ").strip()
+            except EOFError:
+                print(f"\nUsing configured folder: {BASE_DIR}")
+                return
+            if not selected:
+                continue
 
         selected = selected.strip('"')
         if selected.lower().startswith('mtp:'):
@@ -795,38 +909,7 @@ def choose_shared_directory():
             print("The app needs read and write access to that folder. Choose another folder or update its permissions.")
             continue
 
-        env_path = os.path.join(APP_DIR, '.env')
-        try:
-            with open(env_path, 'r', encoding='utf-8') as env_file:
-                lines = env_file.readlines()
-        except FileNotFoundError:
-            lines = []
-        except OSError as error:
-            sys.exit(f"Could not read {env_path}: {error}")
-
-        setting = f"NETMANAGER_DATA_DIR={selected}\n"
-        found = False
-        updated_lines = []
-        for line in lines:
-            if re.match(r'^\s*NETMANAGER_DATA_DIR\s*=', line):
-                if not found:
-                    updated_lines.append(setting)
-                    found = True
-            else:
-                updated_lines.append(line)
-        if not found:
-            if updated_lines and not updated_lines[-1].endswith('\n'):
-                updated_lines[-1] += '\n'
-            updated_lines.append(setting)
-        try:
-            with open(env_path, 'w', encoding='utf-8') as env_file:
-                env_file.writelines(updated_lines)
-        except OSError as error:
-            sys.exit(f"Could not save the selected folder to {env_path}: {error}")
-
-        BASE_DIR = selected
-        os.environ['NETMANAGER_DATA_DIR'] = selected
-        print(f"Saved shared folder: {BASE_DIR}")
+        save_shared_directory(selected)
         return
 
 

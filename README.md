@@ -362,3 +362,4 @@ chmod -R u+rwX data/
 ## 📄 License
 
 Distributed under the **[MIT License](https://opensource.org/licenses/MIT)**. Feel free to use and customize for personal or commercial projects.
+# network-filemanager
